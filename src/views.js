@@ -92,7 +92,7 @@
       rows.unshift(clean);
     } else {
       const i = rows.findIndex(r => r.name === d.name);
-      if (rows[i].docstatus === 1 && !doc.editSubmitted) throw new Error("Submitted entries are locked and cannot be edited.");
+      if (rows[i].docstatus === 2 || (rows[i].docstatus === 1 && !doc.editSubmitted)) throw new Error(rows[i].docstatus === 2 ? "Cancelled entries cannot be edited." : "Submitted entries are locked and cannot be edited.");
       rows[i] = Object.assign(rows[i], clean);
       if (doc.onUpdate) doc.onUpdate(rows[i], store);
     }
@@ -112,8 +112,8 @@
   const sub = (doc, r) => (doc.entity.sub ? doc.entity.sub(r) : "");
   const dateOf = (doc, r) => r[doc.entity.date || "date"];
   DX.titleOf = title; DX.subOf = sub; DX.dateOf = dateOf;
-  DX.statusOf = (doc, row) => { const s = doc.status ? doc.status(row) : row.docstatus === 1 ? ["Submitted", "ok"] : ["Draft", ""]; return s ? DX.status(s[0], s[1]) : ""; };
-  DX.statusKey = (doc, r) => (doc.statusKey ? doc.statusKey(r) : r.docstatus === 1 ? "submitted" : "draft");
+  DX.statusOf = (doc, row) => { const s = doc.status ? doc.status(row) : row.docstatus === 2 ? ["Cancelled", "err"] : row.docstatus === 1 ? ["Submitted", "ok"] : ["Draft", ""]; return s ? DX.status(s[0], s[1]) : ""; };
+  DX.statusKey = (doc, r) => (doc.statusKey ? doc.statusKey(r) : r.docstatus === 2 ? "cancelled" : r.docstatus === 1 ? "submitted" : "draft");
   DX.canSubmit = doc => !!doc.onSubmit && doc.submittable !== false && !doc.autoSubmit;
 
   /* ---------------------------------------------------------------- helpers */
@@ -220,7 +220,7 @@
   V.form = async (ctx, doc, name) => {
     const { app } = ctx;
     let d = DX.blank(doc), mode = "new";
-    if (name) { const x = await DX.getFull(doc, name); if (!x) throw new Error("Entry not found."); if (x.docstatus === 1 && !doc.editSubmitted) return ctx.go(DX.entryRoute(doc, x)); d = JSON.parse(JSON.stringify(x)); mode = "edit"; }
+    if (name) { const x = await DX.getFull(doc, name); if (!x) throw new Error("Entry not found."); if (x.docstatus === 2 || (x.docstatus === 1 && !doc.editSubmitted)) return ctx.go(DX.entryRoute(doc, x)); d = JSON.parse(JSON.stringify(x)); mode = "edit"; }
     else if (doc.defaults) Object.assign(d, doc.defaults());
     ctx.chrome({ crumbs: [crumbApp(app), ...(name ? [{ label: name, go: DX.entryRoute(doc, d) }, { label: "Edit" }] : [{ label: doc.newLabel || "New " + doc.entity.singular.toLowerCase() }])], title: name ? "Edit " + doc.entity.singular.toLowerCase() : (doc.newTitle || "New " + doc.entity.singular.toLowerCase()), actions: "" });
     const canSubmit = DX.canSubmit(doc);
@@ -262,7 +262,7 @@
   V.detail = async (ctx, doc, name) => {
     const { app } = ctx, d = await DX.getFull(doc, name);
     if (!d) throw new Error(`${doc.entity.singular} “${name}” not found.`);
-    const locked = d.docstatus === 1 && !doc.editSubmitted;
+    const locked = d.docstatus === 2 || (d.docstatus === 1 && !doc.editSubmitted);  // a cancelled record is never editable
     const canSubmit = d.docstatus === 0 && DX.canSubmit(doc);
     const canEdit = !locked && doc.form && doc.canEdit !== false;
     ctx.chrome({ crumbs: [crumbApp(app), { label: doc.entity.plural, go: (screenFor(app, "list", doc.key) ? app.key + "/" + screenFor(app, "list", doc.key).id : null) }, { label: d.name }], title: title(doc, d), actions: canEdit ? `<button class="dx-btn dx-btn-secondary dx-hide-m" data-go="${DX.editRoute(doc, d)}">${ic("edit", 15)}Edit</button>` : "" });

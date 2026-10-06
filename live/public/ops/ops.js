@@ -1,4 +1,4 @@
-// DUX Ops Suite /ops/m — build 20261006090515
+// DUX Ops Suite /ops/m — build 20261006100545
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -615,7 +615,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
       rows.unshift(clean);
     } else {
       const i = rows.findIndex(r => r.name === d.name);
-      if (rows[i].docstatus === 1 && !doc.editSubmitted) throw new Error("Submitted entries are locked and cannot be edited.");
+      if (rows[i].docstatus === 2 || (rows[i].docstatus === 1 && !doc.editSubmitted)) throw new Error(rows[i].docstatus === 2 ? "Cancelled entries cannot be edited." : "Submitted entries are locked and cannot be edited.");
       rows[i] = Object.assign(rows[i], clean);
       if (doc.onUpdate) doc.onUpdate(rows[i], store);
     }
@@ -635,8 +635,8 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   const sub = (doc, r) => (doc.entity.sub ? doc.entity.sub(r) : "");
   const dateOf = (doc, r) => r[doc.entity.date || "date"];
   DX.titleOf = title; DX.subOf = sub; DX.dateOf = dateOf;
-  DX.statusOf = (doc, row) => { const s = doc.status ? doc.status(row) : row.docstatus === 1 ? ["Submitted", "ok"] : ["Draft", ""]; return s ? DX.status(s[0], s[1]) : ""; };
-  DX.statusKey = (doc, r) => (doc.statusKey ? doc.statusKey(r) : r.docstatus === 1 ? "submitted" : "draft");
+  DX.statusOf = (doc, row) => { const s = doc.status ? doc.status(row) : row.docstatus === 2 ? ["Cancelled", "err"] : row.docstatus === 1 ? ["Submitted", "ok"] : ["Draft", ""]; return s ? DX.status(s[0], s[1]) : ""; };
+  DX.statusKey = (doc, r) => (doc.statusKey ? doc.statusKey(r) : r.docstatus === 2 ? "cancelled" : r.docstatus === 1 ? "submitted" : "draft");
   DX.canSubmit = doc => !!doc.onSubmit && doc.submittable !== false && !doc.autoSubmit;
 
   /* ---------------------------------------------------------------- helpers */
@@ -743,7 +743,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   V.form = async (ctx, doc, name) => {
     const { app } = ctx;
     let d = DX.blank(doc), mode = "new";
-    if (name) { const x = await DX.getFull(doc, name); if (!x) throw new Error("Entry not found."); if (x.docstatus === 1 && !doc.editSubmitted) return ctx.go(DX.entryRoute(doc, x)); d = JSON.parse(JSON.stringify(x)); mode = "edit"; }
+    if (name) { const x = await DX.getFull(doc, name); if (!x) throw new Error("Entry not found."); if (x.docstatus === 2 || (x.docstatus === 1 && !doc.editSubmitted)) return ctx.go(DX.entryRoute(doc, x)); d = JSON.parse(JSON.stringify(x)); mode = "edit"; }
     else if (doc.defaults) Object.assign(d, doc.defaults());
     ctx.chrome({ crumbs: [crumbApp(app), ...(name ? [{ label: name, go: DX.entryRoute(doc, d) }, { label: "Edit" }] : [{ label: doc.newLabel || "New " + doc.entity.singular.toLowerCase() }])], title: name ? "Edit " + doc.entity.singular.toLowerCase() : (doc.newTitle || "New " + doc.entity.singular.toLowerCase()), actions: "" });
     const canSubmit = DX.canSubmit(doc);
@@ -785,7 +785,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   V.detail = async (ctx, doc, name) => {
     const { app } = ctx, d = await DX.getFull(doc, name);
     if (!d) throw new Error(`${doc.entity.singular} “${name}” not found.`);
-    const locked = d.docstatus === 1 && !doc.editSubmitted;
+    const locked = d.docstatus === 2 || (d.docstatus === 1 && !doc.editSubmitted);  // a cancelled record is never editable
     const canSubmit = d.docstatus === 0 && DX.canSubmit(doc);
     const canEdit = !locked && doc.form && doc.canEdit !== false;
     ctx.chrome({ crumbs: [crumbApp(app), { label: doc.entity.plural, go: (screenFor(app, "list", doc.key) ? app.key + "/" + screenFor(app, "list", doc.key).id : null) }, { label: d.name }], title: title(doc, d), actions: canEdit ? `<button class="dx-btn dx-btn-secondary dx-hide-m" data-go="${DX.editRoute(doc, d)}">${ic("edit", 15)}Edit</button>` : "" });
@@ -946,7 +946,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261006090515";
+  DX.BUILD = "20261006100545";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -2066,7 +2066,11 @@ window.DX.defineApps = function () {
     onSubmit: () => {},
     lockBanner: d => d.material_issue ? "<b>Submitted</b> — Material Issue posted from the contractor’s warehouse." : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
     detailExtra: d => (d.latitude || d.longitude ? `<div class="dx-note">${ic("pin", 16)}<div>Location on record: <b class="dx-mono">${esc(d.latitude)}, ${esc(d.longitude)}</b></div></div>` : ""),
-    detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
+    detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => {
+      // a submitted repair keeps the installation linked — say so plainly instead of the server's link error (which names record IDs)
+      const open = await DX.call("frappe.client.get_count", { doctype: "Inhouse HSC Repairing", filters: DX.json({ hsc_reference: x.name, docstatus: 1 }) }).catch(() => 0);
+      if (+open) { await DX.confirm({ title: "Cancel the repair first", sub: `This connection has ${open} submitted repair${+open > 1 ? "s" : ""}. Cancel the repair under HSC repairing, then cancel the installation.`, noOk: true }); return false; }
+      if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
       counts: () => ({ all: B.counts.installations, draft: B.counts.installation_draft, submitted: B.counts.installation_submitted, cancelled: B.counts.installation_cancelled }),
       query: listQuery("get_hsc_installations", fromInst, p => ({ town: p.filters.hdi_townproject || "", from_date: p.from, to_date: p.to })),

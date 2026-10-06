@@ -61,7 +61,7 @@ Python changes in `page/dux_ops_suite/*.py` need a gunicorn reload.
 | `fuel_item_group` | vehicle_inhouse | Item group of fuel types (unset = `Fuel items JEW`) |
 | `fuel_email_recipients` | vehicle_inhouse | Fuel mails; `[]` sends none (unset = JEW addresses) |
 | `fuel_warehouse_by_town` | vehicle_inhouse | Fuel store resolved from Store At Town |
-| `hsc_company` | hsc_master_inhouse / hsc_np | Company for HSC stock; also issues MDPE pipe (installation) and Ball Valve (repairing) |
+| `hsc_company` | hsc_master_inhouse / hsc_np | Company for HSC stock; also issues MDPE pipe (installation) and Ball Valve (repairing), and makes the Material Issue cancel hook cancel only a real repair |
 | `peb_company`, `peb_raw_warehouse`, `peb_finished_store` | peb | PEB company and stores |
 | `peb_finished_valuation` | peb | Value the painted member at the raw plate cost consumed |
 
@@ -73,6 +73,10 @@ Exact copies of the live files changed on 2026-10-06, kept under their app paths
   (also committed to `Dux-Digitech-6534/fuel-inward-direct-distribution`, branch `development`)
 - `hsc_master_inhouse/.../hsc_details_inhouse.py`, `inhouse_hsc_repairing.py`: MDPE pipe / valve issue on `hsc_company` sites
   (also committed to `Dux-Digitech-6534/hsc_master_inhouse`, branch `development`)
+- `hsc_master_inhouse/api_cancel_hook.patch`: diff only (not the whole private `api.py`) of `cancel_hsc_repairing_from_mi`.
+  On `hsc_company` sites it reads the repair from `custom_hsc_repairing` and skips installation Material Issues, so
+  cancelling an installation no longer logs a bogus "Inhouse HSC Repairing HSC Inhouse-NNN not found". Live on the bench;
+  not committed to the app repo because its `api.py` there carries other people's uncommitted work.
 - `peb/peb/peb/ft_api.py`: `peb_finished_valuation` (the `peb` app has no git repo of its own)
 
 All new behaviour is behind site_config keys, so sites without them keep the old behaviour.

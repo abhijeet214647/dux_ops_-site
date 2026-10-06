@@ -1,0 +1,22 @@
+--- a/hsc_master_inhouse/api.py
++++ b/hsc_master_inhouse/api.py
+@@ -35,9 +35,16 @@
+ 
+ # 🔁 Material Issue Cancel → HSC Repairing Cancel
+ def cancel_hsc_repairing_from_mi(doc, method):
+-    hsc_reference = doc.get("custom_hsc_reference")
+-    if not hsc_reference:
+-        return
++    if frappe.conf.get("hsc_company"):
++        # site_config "hsc_company" (raisonigroup): a repair MI carries the repair in custom_hsc_repairing; an installation
++        # MI carries the installation in custom_hsc_reference — only a real repair is cancelled here
++        hsc_reference = doc.get("custom_hsc_repairing") or doc.get("custom_hsc_reference")
++        if not hsc_reference or not frappe.db.exists("Inhouse HSC Repairing", hsc_reference):
++            return
++    else:
++        hsc_reference = doc.get("custom_hsc_reference")
++        if not hsc_reference:
++            return
+ 
+     try:
+         hsc = frappe.get_doc("Inhouse HSC Repairing", hsc_reference)

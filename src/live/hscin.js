@@ -71,7 +71,11 @@
     onSubmit: () => {},
     lockBanner: d => d.material_issue ? "<b>Submitted</b> — Material Issue posted from the contractor’s warehouse." : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
     detailExtra: d => (d.latitude || d.longitude ? `<div class="dx-note">${ic("pin", 16)}<div>Location on record: <b class="dx-mono">${esc(d.latitude)}, ${esc(d.longitude)}</b></div></div>` : ""),
-    detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
+    detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => {
+      // a submitted repair keeps the installation linked — say so plainly instead of the server's link error (which names record IDs)
+      const open = await DX.call("frappe.client.get_count", { doctype: "Inhouse HSC Repairing", filters: DX.json({ hsc_reference: x.name, docstatus: 1 }) }).catch(() => 0);
+      if (+open) { await DX.confirm({ title: "Cancel the repair first", sub: `This connection has ${open} submitted repair${+open > 1 ? "s" : ""}. Cancel the repair under HSC repairing, then cancel the installation.`, noOk: true }); return false; }
+      if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
       counts: () => ({ all: B.counts.installations, draft: B.counts.installation_draft, submitted: B.counts.installation_submitted, cancelled: B.counts.installation_cancelled }),
       query: listQuery("get_hsc_installations", fromInst, p => ({ town: p.filters.hdi_townproject || "", from_date: p.from, to_date: p.to })),
