@@ -26,6 +26,8 @@ SOURCES = (
     ("Pour Card", "material_issue", "Pour Card"),
     ("Pour Card Town", "material_issue", "Pour Card Town"),
     ("Concrete Entry", "material_issue", "Concrete"),
+    ("Fuel for Stock", "custom_material_issue", "Fuel direct"),
+    ("Fuel Distribution", "custom_material_issue", "Fuel issue"),
 )
 
 
@@ -67,6 +69,8 @@ SOURCE_TITLE_FIELDS = {
     "Inhouse HSC Repairing": ("hsc_reference",),
     "Pour Card": ("from_junction", "to_junction"),
     "Concrete Entry": ("concrete_grade", "quantity_of_concrete"),
+    "Fuel for Stock": ("custom_vehicles",),
+    "Fuel Distribution": ("fd_vehicle_name",),
 }
 
 
@@ -80,6 +84,9 @@ def _source_title(doctype, r):
         return r.name  # the record name is the house owner's name
     if doctype == "Pour Card":
         return " → ".join(x for x in (r.get("from_junction"), r.get("to_junction")) if x)
+    if doctype in ("Fuel for Stock", "Fuel Distribution"):
+        vehicle = r.get("custom_vehicles") or r.get("fd_vehicle_name")
+        return (frappe.db.get_value("Vehicle Details", vehicle, "vehicle_display_name") if vehicle else "") or ""
     if doctype == "Concrete Entry":
         return " · ".join(x for x in (r.get("concrete_grade"), (f"{flt(r.get('quantity_of_concrete')):g} m³" if r.get("quantity_of_concrete") else "")) if x)
     return ""
@@ -278,16 +285,20 @@ def home():
     """Home card for the Stock app (used by suite_home)."""
     start = str(get_first_day(today()))
     rows = frappe.get_list("Stock Entry", filters={"stock_entry_type": ["in", PURPOSES], "docstatus": ["<", 2]},
-                           fields=["name", "stock_entry_type", "posting_date", "docstatus", "modified"],
+                           fields=["name", "stock_entry_type", "posting_date", "docstatus", "modified", "from_warehouse", "to_warehouse"],
                            order_by="modified desc", limit_page_length=200)
     src = _sources([r.name for r in rows[:5]])
     drafts = [r for r in rows if r.docstatus == 0]
+    for r in rows[:5] + drafts[:4]:
+        if not (r.from_warehouse or r.to_warehouse):
+            it = frappe.db.get_value("Stock Entry Detail", {"parent": r.name}, ["s_warehouse", "t_warehouse"], as_dict=True, order_by="idx asc") or {}
+            r.from_warehouse, r.to_warehouse = it.get("s_warehouse"), it.get("t_warehouse")
     label = {"Material Receipt": "Received into store", "Material Transfer": "Material transfer", "Material Issue": "Material issue"}
     return {
         "value": sum(1 for r in rows if r.docstatus == 1 and str(r.posting_date) >= start), "label": "stock entries this month",
         "today": sum(1 for r in rows if str(r.posting_date) == today()), "drafts": len(drafts),
-        "attention": [{"title": r.name, "sub": f"Draft · {label[r.stock_entry_type]} · not submitted", "doc": "se", "name": r.name, "tag": "Submit pending"} for r in drafts[:4]],
+        "attention": [{"title": f"{label[r.stock_entry_type]} · {r.from_warehouse or '—'} → {r.to_warehouse or '—'}", "sub": "Stock entry · draft, not submitted", "doc": "se", "name": r.name, "tag": "Submit pending"} for r in drafts[:4]],
         "attention_count": len(drafts),
-        "recent": [{"title": f"{label[r.stock_entry_type]} · {r.name}", "sub": src.get(r.name) or "Stock app", "date": str(r.posting_date),
+        "recent": [{"title": f"{label[r.stock_entry_type]} · {src.get(r.name) or 'Stock app'}", "sub": f"{r.from_warehouse or '—'} → {r.to_warehouse or '—'}", "date": str(r.posting_date),
                     "status": ["Submitted", "ok"] if r.docstatus == 1 else ["Draft", ""], "doc": "se", "name": r.name} for r in rows[:5]],
     }

@@ -3,7 +3,7 @@
 
 """DUX Ops Suite — Home overview per app (value, today, drafts, needs-attention, recent activity).
 
-Link values are always sent as display names, never record IDs.
+Link values and titles are always display values (title field / human labels), never record IDs.
 """
 
 import frappe
@@ -14,6 +14,20 @@ from dux_portal.dux_portal.page.dux_ops_suite.dux_ops_suite import _allowed_apps
 
 def _count(doctype, filters=None):
     return len(frappe.get_list(doctype, filters=filters or {}, pluck="name", limit_page_length=0))
+
+
+def _towns(ids):
+    """Town At Project display names (title) for a set of town IDs."""
+    ids = [i for i in set(ids) if i]
+    if not ids:
+        return {}
+    return {t.name: t.display_name or " - ".join(x for x in (t.town_name, t.project_name) if x) or t.name
+            for t in frappe.get_all("Town At Project", filters={"name": ["in", ids]}, fields=["name", "display_name", "town_name", "project_name"])}
+
+
+def _pour_title(d):
+    route = " → ".join(x for x in (d.from_junction, d.to_junction) if x)
+    return " · ".join(x for x in (d.component or d.townproject, route) if x) or "Pour card"
 
 
 def _st(docstatus, draft="Draft", done="Submitted"):
@@ -38,8 +52,8 @@ def _home_pour():
     return {
         "value": len(rows), "label": "pour cards",
         "today": sum(1 for d in rows if str(d.modified)[:10] == today()), "drafts": len(saved),
-        "attention": [{"title": d.name, "sub": f"Saved · {d.from_junction or ''} → {d.to_junction or ''} · not locked", "doc": "card", "name": d.name, "tag": "Lock pending"} for d in saved[:5]], "attention_count": len(saved),
-        "recent": [{"title": d.name, "sub": f"{d.component or d.townproject or ''} · {d.from_junction or ''} → {d.to_junction or ''}", "date": str(d.modified)[:10], "status": _st(d.docstatus, "Saved", "Lock Entry"), "doc": "card", "name": d.name} for d in rows[:5]],
+        "attention": [{"title": _pour_title(d), "sub": "saved, not locked", "doc": "card", "name": d.name, "tag": "Lock pending"} for d in saved[:5]], "attention_count": len(saved),
+        "recent": [{"title": _pour_title(d), "sub": d.townproject or "", "date": str(d.modified)[:10], "status": _st(d.docstatus, "Saved", "Lock Entry"), "doc": "card", "name": d.name} for d in rows[:5]],
     }
 
 
@@ -63,66 +77,70 @@ def _home_peb():
 
 
 def _home_concrete():
-    rows = frappe.get_list("Concrete Entry", filters={"docstatus": ["<", 2]}, fields=["name", "docstatus", "date", "concrete_grade", "quantity_of_concrete"], limit_page_length=0, order_by="modified desc")
+    rows = frappe.get_list("Concrete Entry", filters={"docstatus": ["<", 2]}, fields=["name", "docstatus", "date", "concrete_grade", "quantity_of_concrete", "projecttown"], limit_page_length=0, order_by="modified desc")
     drafts = [r for r in rows if r.docstatus == 0]
+    towns = _towns([r.projecttown for r in drafts[:4] + rows[:5]])
     return {
         "value": round(sum(flt(r.quantity_of_concrete) for r in rows if r.docstatus == 1), 1), "label": "m³ poured",
         "today": sum(1 for r in rows if str(r.date) == today()), "drafts": len(drafts),
-        "attention": [{"title": r.name, "sub": f"{r.concrete_grade} · {flt(r.quantity_of_concrete):g} m³ · draft, stock not issued", "doc": "ce", "name": r.name, "tag": "Submit pending"} for r in drafts[:4]], "attention_count": len(drafts),
-        "recent": [{"title": f"{r.concrete_grade} · {flt(r.quantity_of_concrete):g} m³", "sub": r.name, "date": str(r.date or ""), "status": _st(r.docstatus), "doc": "ce", "name": r.name} for r in rows[:5]],
+        "attention": [{"title": f"{r.concrete_grade} · {flt(r.quantity_of_concrete):g} m³ · {towns.get(r.projecttown) or ''}".rstrip(" ·"), "sub": "draft, stock not issued", "doc": "ce", "name": r.name, "tag": "Submit pending"} for r in drafts[:4]], "attention_count": len(drafts),
+        "recent": [{"title": f"{r.concrete_grade} · {flt(r.quantity_of_concrete):g} m³", "sub": towns.get(r.projecttown) or "", "date": str(r.date or ""), "status": _st(r.docstatus), "doc": "ce", "name": r.name} for r in rows[:5]],
     }
 
 
 def _home_fuelstock():
     start = str(get_first_day(today()))
-    rows = frappe.get_list("Fuel Distribution", filters={"docstatus": 1, "fd_date": [">=", start]}, fields=["name", "fd_date", "issued_quantity_ltr", "fd_fuel_type", "fd_vehicle_name"], limit_page_length=0, order_by="fd_date desc, modified desc")
+    rows = frappe.get_list("Fuel Distribution", filters={"docstatus": 1, "fd_date": [">=", start]}, fields=["name", "fd_date", "issued_quantity_ltr", "fd_fuel_type", "fd_vehicle_name", "fd_town_project"], limit_page_length=0, order_by="fd_date desc, modified desc")
+    towns = _towns([r.fd_town_project for r in rows[:5]])
     vehicles = {v.name: v.vehicle_display_name for v in frappe.get_all("Vehicle Details", filters={"name": ["in", [r.fd_vehicle_name for r in rows[:5] if r.fd_vehicle_name] or ["-"]]}, fields=["name", "vehicle_display_name"])}
     return {
         "value": round(sum(flt(r.issued_quantity_ltr) for r in rows)), "label": "L issued this month",
         "today": sum(1 for r in rows if str(r.fd_date) == today()), "drafts": 0,
         "attention": [], "attention_count": 0,
-        "recent": [{"title": f"{r.name} · {flt(r.issued_quantity_ltr):g} L {r.fd_fuel_type or ''}", "sub": vehicles.get(r.fd_vehicle_name) or "Vehicle", "date": str(r.fd_date or ""), "status": ["Submitted", "ok"], "doc": "dist", "name": r.name} for r in rows[:5]],
+        "recent": [{"title": f"{vehicles.get(r.fd_vehicle_name) or 'Vehicle'} · {flt(r.issued_quantity_ltr):g} L {r.fd_fuel_type or ''}", "sub": f"Issued from store · {towns.get(r.fd_town_project) or ''}".rstrip(" ·"), "date": str(r.fd_date or ""), "status": ["Submitted", "ok"], "doc": "dist", "name": r.name} for r in rows[:5]],
     }
 
 
 def _home_hscin():
-    reps = frappe.get_list("Inhouse HSC Repairing", filters={"docstatus": 0}, fields=["name", "hsc_reference"], limit_page_length=50, order_by="modified desc")
-    recent = frappe.get_list("HSC Details Inhouse", fields=["name", "docstatus", "select_date", "hdi_house_owner_name"], limit_page_length=5, order_by="modified desc")
+    reps = frappe.get_list("Inhouse HSC Repairing", filters={"docstatus": 0}, fields=["name", "hsc_reference", "ihr_townproject"], limit_page_length=50, order_by="modified desc")
+    recent = frappe.get_list("HSC Details Inhouse", fields=["name", "docstatus", "select_date", "hdi_house_owner_name", "hdi_townproject"], limit_page_length=5, order_by="modified desc")
+    towns = _towns([r.ihr_townproject for r in reps[:3]] + [r.hdi_townproject for r in recent])
     # link fields show the consumer, never the HSC record ID
     refs = list({r.hsc_reference for r in reps[:3] if r.hsc_reference})
     consumer = dict(frappe.get_all("HSC Details Inhouse", filters={"name": ["in", refs]}, fields=["name", "hdi_house_owner_name"], as_list=True)) if refs else {}
     return {
         "value": _count("HSC Details Inhouse", {"docstatus": ["<", 2]}), "label": "installations",
         "today": _count("HSC Details Inhouse", {"select_date": today()}), "drafts": _count("HSC Details Inhouse", {"docstatus": 0}),
-        "attention": [{"title": r.name.strip(), "sub": f"Draft repair · {consumer.get(r.hsc_reference) or 'HSC connection'}", "doc": "rep", "name": r.name, "tag": "Draft repair"} for r in reps[:3]], "attention_count": len(reps),
-        "recent": [{"title": r.hdi_house_owner_name or r.name, "sub": r.name, "date": str(r.select_date or ""), "status": _st(r.docstatus), "doc": "inst", "name": r.name} for r in recent],
+        "attention": [{"title": consumer.get(r.hsc_reference) or "HSC connection", "sub": f"Draft repair · {towns.get(r.ihr_townproject) or ''}".rstrip(" ·"), "doc": "rep", "name": r.name, "tag": "Draft repair"} for r in reps[:3]], "attention_count": len(reps),
+        "recent": [{"title": r.hdi_house_owner_name or "HSC connection", "sub": f"Installation · {towns.get(r.hdi_townproject) or ''}".rstrip(" ·"), "date": str(r.select_date or ""), "status": _st(r.docstatus), "doc": "inst", "name": r.name} for r in recent],
     }
 
 
 def _home_maint():
     since = str(frappe.utils.add_days(today(), -30))
-    rows = frappe.get_list("Maintenance Entry", filters={"date": [">=", since]}, fields=["name", "date", "vehicle", "service_type", "total_repairing_amount"], limit_page_length=0, order_by="date desc, modified desc")
+    rows = frappe.get_list("Maintenance Entry", filters={"date": [">=", since]}, fields=["name", "date", "vehicle", "service_type", "total_repairing_amount", "vendor_name"], limit_page_length=0, order_by="date desc, modified desc")
     return {
         "value": len(rows), "label": "entries in 30 days",
         "today": sum(1 for r in rows if str(r.date) == today()), "drafts": 0,
         "attention": [], "attention_count": 0,
-        "recent": [{"title": f"{r.vehicle or ''} · {r.service_type or ''}", "sub": f"{r.name} · ₹{flt(r.total_repairing_amount):,.0f}", "date": str(r.date or ""), "status": ["Saved", ""], "doc": "entry", "name": r.name} for r in rows[:5]],
+        "recent": [{"title": f"{r.vehicle or ''} · {r.service_type or ''}", "sub": f"₹{flt(r.total_repairing_amount):,.0f} · {r.vendor_name or ''}".rstrip(" ·"), "date": str(r.date or ""), "status": ["Saved", ""], "doc": "entry", "name": r.name} for r in rows[:5]],
     }
 
 
 def _home_fuelin(include_distribution=False):
     """Fuel is ONE suite app: pump purchases (Fuel for Stock) plus, for distributors, store issues (Fuel Distribution)."""
     start = str(get_first_day(today()))
-    fs = frappe.get_list("Fuel for Stock", filters={"docstatus": 1, "date": [">=", start], "fuel_entry_type": ["in", ["Drum", "Vehicle"]]}, fields=["name", "date", "fuel_entry_type", "quantity", "types_of_fuel", "amount"], limit_page_length=0, order_by="date desc, modified desc")
+    fs = frappe.get_list("Fuel for Stock", filters={"docstatus": 1, "date": [">=", start], "fuel_entry_type": ["in", ["Drum", "Vehicle"]]}, fields=["name", "date", "fuel_entry_type", "quantity", "types_of_fuel", "amount", "fuel_station_town_name"], limit_page_length=0, order_by="date desc, modified desc")
     names = [f.name for f in fs]
+    towns = _towns([f.fuel_station_town_name for f in fs[:5]])
     pis = []
     if names and frappe.get_meta("Purchase Invoice").has_field("custom_fuel_stock_ref"):
         pis = frappe.get_all("Purchase Invoice", filters={"docstatus": 0, "custom_fuel_stock_ref": ["in", names]}, fields=["name", "supplier", "grand_total", "custom_fuel_stock_ref"], order_by="posting_date desc")
     out = {
         "value": round(sum(flt(f.quantity) for f in fs)), "label": "L inward this month",
         "today": sum(1 for f in fs if str(f.date) == today()), "drafts": 0,
-        "attention": [{"title": f"{p.supplier} · ₹{flt(p.grand_total):,.0f}", "sub": "Fuel purchase invoice · waiting for Accounts", "doc": "inward", "name": p.custom_fuel_stock_ref, "tag": "Approval pending"} for p in pis[:5]], "attention_count": len(pis),
-        "recent": [{"title": f"{f.name} · {flt(f.quantity):g} L {f.types_of_fuel or ''}", "sub": ("Fuel inward" if f.fuel_entry_type == "Drum" else "Direct distribution") + f" · ₹{flt(f.amount):,.0f}", "date": str(f.date or ""), "status": ["Submitted", "ok"], "doc": "inward", "name": f.name} for f in fs[:5]],
+        "attention": [{"title": f"{p.supplier} · ₹{flt(p.grand_total):,.0f}", "sub": "Purchase invoice · waiting for Accounts", "doc": "inward", "name": p.custom_fuel_stock_ref, "tag": "Approval pending"} for p in pis[:5]], "attention_count": len(pis),
+        "recent": [{"title": ("Fuel inward" if f.fuel_entry_type == "Drum" else "Direct distribution") + f" · {flt(f.quantity):g} L {f.types_of_fuel or ''}", "sub": f"₹{flt(f.amount):,.0f} · {towns.get(f.fuel_station_town_name) or ''}".rstrip(" ·"), "date": str(f.date or ""), "status": ["Submitted", "ok"], "doc": "inward", "name": f.name} for f in fs[:5]],
     }
     if include_distribution:
         dist = _home_fuelstock()
