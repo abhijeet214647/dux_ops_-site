@@ -1,4 +1,4 @@
-// DUX Ops Suite /ops/m — build 20261006081740
+// DUX Ops Suite /ops/m — build 20261006090515
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -946,7 +946,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261006081740";
+  DX.BUILD = "20261006090515";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -1072,8 +1072,8 @@ window.DX.defineApps = function () {
     submitTitle: "Submit this connection?", submitOk: "Submit & issue stock", submitSub: "Submitting locks the entry and creates a Stock Entry (Material Issue).", submitLinesTitle: "Will be issued",
     submitLines: d => [["MDPE Pipe (mtr)", d.mdpe_pipemtr]].concat(FITTINGS.map(([f, , item]) => [item, d[f]])).filter(l => +l[1] > 0).map(([k, v]) => [k, nf(v)]),
     submitNote: d => d.electrofusion_saddle ? `${esc(d.electrofusion_saddle)} is recorded on the entry but not issued from stock.` : "",
-    submitToast: d => d.material_issue ? `Submitted · Material Issue <span class="dx-mono">${esc(d.material_issue)}</span> created` : `Submitted · <span class="dx-mono">${esc(d.name)}</span>`,
-    lockBanner: d => d.material_issue ? `<b>Submitted</b> — materials issued via <span class="dx-link">${esc(d.material_issue)}</span>` : "<b>Submitted</b> — entry is locked.",
+    submitToast: d => d.material_issue ? "Submitted · materials issued from the contractor’s store" : "Submitted",
+    lockBanner: d => d.material_issue ? "<b>Submitted</b> — materials issued from the contractor’s store (Material Issue posted)." : "<b>Submitted</b> — entry is locked.",
     formNote: d => `${[d.mdpe_pipemtr].concat(FITTINGS.map(([f]) => d[f])).filter(v => +v > 0).length} material lines · ${photos(d)}/4 photos`,
     api: {
       ttl: 30000,
@@ -1203,7 +1203,7 @@ window.DX.defineApps = function () {
     onSubmit: () => {},
     submitProblems: d => (d.batches || []).length ? [] : ["Add at least one laying detail (PIPE-ID) before locking."],
     submitLines: d => { const q = cardQ(d); return [["Pipe entries", nf((d.batches || []).length)], ["Pipe length (m)", nf(q.len, 2)], ["Total excavation (m³)", nf(q.exc, 3)], ["Accessory qty", nf(q.acc)]]; },
-    lockBanner: d => d.material_issue ? `<b>Lock Entry</b> — Material Issue <span class="dx-link">${esc(d.material_issue)}</span> posted from the contractor’s warehouse.` : `<b>Lock Entry</b> — card is submitted. Stock posting on lock is held on this site, so no Material Issue was created.`,
+    lockBanner: d => d.material_issue ? "<b>Lock Entry</b> — Material Issue posted from the contractor’s warehouse." : `<b>Lock Entry</b> — card is submitted. Stock posting on lock is held on this site, so no Material Issue was created.`,
     detailActions: d => [d.docstatus === 0 && d.can_write !== false && { label: "Add laying details", icon: "plus", tone: "secondary", run: (x, ctx) => layingModal(x, ctx) }, (d.batches || []).length && { label: "Backfilling", icon: "layers", run: x => backfillModal(x) }],
     detailExtra: d => {
       const bs = d.batches || [];
@@ -1674,8 +1674,8 @@ window.DX.defineApps = function () {
     onSubmit: () => {},
     submitLines: d => (d.materials || []).filter(r => +r.consumption > 0).map(r => [`${r.label} (${r.uom})`, nf(r.consumption, 3)]),
     submitNote: d => (d._wh ? `Source warehouse: <b class="dx-mono">${esc(DX.whLabel(d._wh))}</b>` : ""),
-    submitToast: d => d.material_issue ? `Submitted · Material Issue <span class="dx-mono">${esc(d.material_issue)}</span> created` : `Submitted · <span class="dx-mono">${esc(d.name)}</span>`,
-    lockBanner: d => `<b>Submitted</b> — ${d.material_issue ? `Material Issue <span class="dx-link">${esc(d.material_issue)}</span>. ` : ""}Cancelling this entry cancels the Material Issue too.`,
+    submitToast: d => d.material_issue ? "Submitted · Material Issue created" : "Submitted",
+    lockBanner: d => `<b>Submitted</b> — ${d.material_issue ? "Material Issue posted from the contractor’s store. " : ""}Cancelling this entry cancels the Material Issue too.`,
     api: {
       ttl: 30000,
       load: async () => (await call("list_concrete_entries", { limit: 500 })).map(fromRow),
@@ -1721,7 +1721,7 @@ window.DX.defineApps = function () {
         search: [r => r.name, r => townLabel(r.projecttown, r), r => contractorLabel(r.contractor, r), r => r.concrete_grade, r => r.civil_component],
         filters: [{ f: "projecttown", label: "Project / town", options: townOpts, display: M.townLabel }, { f: "concrete_grade", label: "Grade", options: () => B.grades }],
         sum: rows => `<span class="dx-num">${nf(qty(rows), 2)}</span> m³`,
-        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { f: "date", label: "Date", type: "date" }, { label: "Project", get: r => townLabel(r.projecttown, r), trunc: true }, { label: "Contractor", get: r => contractorLabel(r.contractor, r), trunc: true }, { label: "Component", get: r => `${r.civil_component || ""} · ${r.sub_component || ""}`, hideSm: true }, { f: "concrete_grade", label: "Grade" }, { f: "quantity_of_concrete", label: "Qty (m³)", type: "num", d: 2 }, { f: "material_issue", label: "Material Issue", type: "mono" }, { label: "Status", type: "status", get: r => DX.statusOf(ce, r) }] },
+        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { f: "date", label: "Date", type: "date" }, { label: "Project", get: r => townLabel(r.projecttown, r), trunc: true }, { label: "Contractor", get: r => contractorLabel(r.contractor, r), trunc: true }, { label: "Component", get: r => `${r.civil_component || ""} · ${r.sub_component || ""}`, hideSm: true }, { f: "concrete_grade", label: "Grade" }, { f: "quantity_of_concrete", label: "Qty (m³)", type: "num", d: 2 }, { label: "Material Issue", type: "html", get: r => (r.material_issue ? DX.status("Issued", "ok") : "<span class=\"dx-faint\">—</span>") }, { label: "Status", type: "status", get: r => DX.statusOf(ce, r) }] },
       { id: "new", label: "New concrete entry", icon: "plus", type: "form", doc: "ce", group: "Concrete" },
       { id: "grademap", label: "Grade map", icon: "layers", type: "list", doc: "gm", group: "Masters", dateFilter: false, statuses: [], banner: () => DX.handoff("New grade maps are added in the full Concrete Master page.", "/desk/concrete-master", "Open Concrete Master"), columns: [{ f: "name", label: "Name", type: "mono", strong: true }, { label: "Project / town", get: r => r.townproject_label || M.townLabel(r.townproject) }, { f: "concrete_grade", label: "Grade" }, { f: "material_count", label: "Materials", type: "num" }] },
       { id: "components", label: "Civil component", icon: "building", type: "list", doc: "cc", group: "Masters", dateFilter: false, statuses: [], banner: () => DX.handoff("New civil components are added in the full Concrete Master page.", "/desk/concrete-master", "Open Concrete Master"), columns: [{ label: "Component", strong: true, get: r => r.civil_component_label || r.name }, { label: "Project / town", get: r => r.townproject_label || M.townLabel(r.townproject) }, { f: "sub_component_count", label: "Sub components", type: "num" }] },
@@ -1759,7 +1759,10 @@ window.DX.defineApps = function () {
   const loadTowns = async (company, applicable) => { const k = company + "|" + applicable; if (!B.towns[k]) B.towns[k] = ((await q("get_jain_town_projects", { company, applicable_for: applicable })) || []).map(([value, label]) => ({ value, label })); return B.towns[k]; };
   const loadPumps = async town => { if (!town) return []; if (!B.pumps[town]) B.pumps[town] = ((await DX.call(P + "get_petrol_pumps_for_town", { doctype: "Petrol Pump", txt: "", searchfield: "name", start: 0, page_len: 200, filters: DX.json({ town }) })) || []).map(([value, label]) => ({ value, label })); return B.pumps[town]; };
   const money = v => DX.money(v, 2);
-  const deskLink = (dt, name) => (name ? `<a class="dx-link dx-mono" href="/app/${dt}/${encodeURIComponent(name)}" target="_blank" rel="noopener">${esc(name)}</a>` : `<span class="dx-faint">—</span>`);
+  // linked documents open in ERPNext but never print their record ID
+  const deskLink = (dt, name) => (name ? `<a class="dx-link" href="/app/${dt}/${encodeURIComponent(name)}" target="_blank" rel="noopener">Open</a> ` : `<span class="dx-faint">—</span>`);
+  const issued = v => (v ? DX.status("Issued", "ok") : "<span class=\"dx-faint\">—</span>");
+  const invoiceState = r => (!r.pi ? "<span class=\"dx-faint\">—</span>" : r.pi_pending ? DX.status("Approval pending", "pending") : DX.status("Approved", "ok"));
 
   /* ---- Fuel for Stock (Drum / Vehicle) ---- */
   const fromInward = r => ({ name: r.name, docstatus: 1, fuel_entry_type: r.entry_type, date: DX.day(r.date), company: r.company, fuel_station_town_name: r.town_project_id, town_label: r.town_project_label || r.town_project, custom_petrol_pump: r.petrol_pump, supplier: r.supplier, custom_vehicles: r.vehicle_id || "", vehicle_label: r.vehicle_label && r.vehicle_label !== "-" ? r.vehicle_label : "", types_of_fuel: r.fuel_type, quantity: +r.quantity || 0, rateltr_ffs: +r.rate || 0, amount: +r.amount || 0, warehouse: r.warehouse, pr: r.purchase_receipt || "", pi: r.purchase_invoice || "", pi_pending: !!r.purchase_invoice_pending, mi: r.material_issue || "", custom_remark: r.remark || "", custom_current_reading_km: r.custom_current_reading_km || r.current_reading_km || 0, last_reading_km: r.last_reading_km || 0, upload_invoice__invoice_copy: r.invoice_copy_url || r.invoice_file || "", upload_fuel_station_proof__fuel_station_receipt: r.fuel_station_proof_url || r.fuel_station_proof_file || "", custom_qr_attachment: r.qr_attachment_file || "", custom_upload_vehicle_reading: r.vehicle_reading_file || "", modified: r.modified });
@@ -1811,7 +1814,7 @@ window.DX.defineApps = function () {
     },
     formNote: d => `${d.fuel_entry_type === "Vehicle" ? "Direct distribution · PR + PI + Material Issue" : "Fuel inward · PR + PI (stock into store)"} · <b>${DX.money((+d.quantity || 0) * (+d.rateltr_ffs || 0))}</b>`,
     detailActions: d => [meta().can_approve_invoices && d.pi_pending && { label: "Approve invoice", icon: "check", tone: "primary", run: x => approve(x) }, !d.upload_invoice__invoice_copy && { label: "Upload invoice copy", icon: "upload", run: x => uploadInvoice(x) }],
-    detailExtra: d => DX.card("Documents", `<div class="dx-kv"><div class="k">Purchase Receipt</div><div class="v">${deskLink("purchase-receipt", d.pr)}${d.pr ? DX.status("Submitted", "ok") : ""}</div><div class="k">Purchase Invoice</div><div class="v">${deskLink("purchase-invoice", d.pi)}${d.pi ? (d.pi_pending ? DX.status("Draft · approval pending", "pending") : DX.status("Submitted", "ok")) : ""}</div>${d.mi ? `<div class="k">Material Issue</div><div class="v">${deskLink("stock-entry", d.mi)}${DX.status("Submitted", "ok")}</div>` : ""}<div class="k">Supplier</div><div class="v">${esc(d.supplier || "—")}</div><div class="k">Store</div><div class="v dx-mono">${esc(d.warehouse || "—")}</div></div>`, { icon: "card", tone: "cyan", sub: "created automatically on save" }) + (d.pi_pending ? `<div class="dx-note" style="margin-top:14px">${ic("rupee", 16)}<div>Payment options (advance / pay now by QR) are chosen from the link emailed for <b class="dx-mono">${esc(d.pi)}</b>.</div></div>` : "") + "<div style='height:16px'></div>",
+    detailExtra: d => DX.card("Documents", `<div class="dx-kv"><div class="k">Purchase Receipt</div><div class="v">${deskLink("purchase-receipt", d.pr)}${d.pr ? DX.status("Submitted", "ok") : ""}</div><div class="k">Purchase Invoice</div><div class="v">${deskLink("purchase-invoice", d.pi)}${d.pi ? (d.pi_pending ? DX.status("Draft · approval pending", "pending") : DX.status("Submitted", "ok")) : ""}</div>${d.mi ? `<div class="k">Material Issue</div><div class="v">${deskLink("stock-entry", d.mi)}${DX.status("Submitted", "ok")}</div>` : ""}<div class="k">Supplier</div><div class="v">${esc(d.supplier || "—")}</div><div class="k">Store</div><div class="v dx-mono">${esc(d.warehouse || "—")}</div></div>`, { icon: "card", tone: "cyan", sub: "created automatically on save" }) + (d.pi_pending ? `<div class="dx-note" style="margin-top:14px">${ic("rupee", 16)}<div>Payment options (advance / pay now by QR) are chosen from the link emailed for this invoice.</div></div>` : "") + "<div style='height:16px'></div>",
     api: {
       ttl: 45000,
       load: async () => ((await DX.call(P + "get_fuel_inward_direct_distribution_dashboard", { filters: DX.json(Object.assign({ report_scope: "inward_direct" }, WINDOW())) })).rows || []).map(fromInward),
@@ -1834,7 +1837,7 @@ window.DX.defineApps = function () {
     get canCreate() { return !!meta().can_use_fuel_distribution; },
     entity: { singular: "Fuel distribution", plural: "Fuel distributions", title: r => r.vehicle_label || r.fd_vehicle_name, sub: r => `${nf(r.issued_quantity_ltr, 2)} L ${r.fd_fuel_type || ""} · ${r.warehouse || ""} · ${r.name}`, date: "fd_date" },
     newLabel: "Add fuel distribution", saveLabel: "Submit", status: () => ["Submitted", "ok"], statusFilter: [],
-    saveToast: s => `Fuel Distribution <span class="dx-mono">${esc(s.name)}</span> submitted${s.mi ? ` · Material Issue <span class="dx-mono">${esc(s.mi)}</span> created` : ""}.`,
+    saveToast: s => `Fuel Distribution <span class="dx-mono">${esc(s.name)}</span> submitted${s.mi ? " · Material Issue created" : ""}.`,
     defaults: () => ({ fd_date: DX.TODAY, company: meta().default_company || fuelCompanies()[0], reading_status: "Working", fd_fuel_type: "Diesel" }),
     confirmSave: d => DX.confirm({ title: "Submit this fuel distribution?", ok: "Submit", sub: "Deducts the fuel from the store now (Material Issue) and records Fuel for Vehicle.", body: `<div class="dx-issue">${[["Vehicle", vehicleLabel(d.fd_vehicle_name)], ["Issued", `${nf(d.issued_quantity_ltr, 2)} L ${d.fd_fuel_type}`], ["Store", d._wh || "—"]].map(([k, v]) => `<div class="dx-issue-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}</div>${d.reading_status === "Not Working" ? `<p class="dx-muted" style="font-size:12.5px;margin-top:10px;color:var(--pending)">Reading status “Not Working” emails the fuel admins.</p>` : ""}` }),
     form: [
@@ -1905,7 +1908,7 @@ window.DX.defineApps = function () {
     repaint();
   }
   function approve(d) {
-    return DX.confirm({ title: "Approve and submit the invoice?", sub: `${esc(d.pi)} · ${esc(d.supplier || d.custom_petrol_pump)} · ${DX.money(d.amount)}`, ok: "Approve", body: `<div class="dx-hint">${ic("rupee", 16)}<span>Submits the Purchase Invoice. Unless “Pay now” was chosen from the email, the supplier’s oldest unallocated advance is adjusted against it.</span></div>` })
+    return DX.confirm({ title: "Approve and submit the invoice?", sub: `${esc(d.supplier || d.custom_petrol_pump)} · ${DX.money(d.amount)}`, ok: "Approve", body: `<div class="dx-hint">${ic("rupee", 16)}<span>Submits the Purchase Invoice. Unless “Pay now” was chosen from the email, the supplier’s oldest unallocated advance is adjusted against it.</span></div>` })
       .then(async ok => { if (!ok) return false; const r = await DX.call(P + "approve_fuel_inward_direct_distribution_invoice", { entry_name: d.name }); DX.toast(esc(r.message || "Invoice approved.")); DX.invalidate(inA); if (DX.homeData) DX.loadHome(true); return true; });
   }
   function uploadInvoice(d) {
@@ -1929,7 +1932,7 @@ window.DX.defineApps = function () {
   };
   const pending = () => DX.rows(inA).filter(r => r.pi_pending);
   const inwardCols = [{ f: "date", label: "Date", type: "date" }, { f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => (r.fuel_entry_type === "Vehicle" ? "Direct distribution" : "Fuel inward") }, { f: "town_label", label: "Town / project", trunc: true }, { f: "types_of_fuel", label: "Fuel" }, { f: "quantity", label: "Quantity (L)", type: "num", d: 2, total: true }, { f: "amount", label: "Amount", type: "money", total: true }, { label: "Approval", type: "status", get: r => DX.statusOf(inA, r) }];
-  const distCols = [{ f: "fd_date", label: "Date", type: "date" }, { f: "name", label: "Entry", type: "mono", strong: true }, { f: "town_label", label: "Town / project", trunc: true }, { f: "vehicle_label", label: "Vehicle", trunc: true }, { f: "reading_status", label: "Reading" }, { f: "fd_fuel_type", label: "Fuel" }, { f: "issued_quantity_ltr", label: "Quantity (L)", type: "num", d: 1, total: true }, { f: "warehouse", label: "Store", trunc: true }, { f: "mi", label: "Material Issue", type: "mono" }];
+  const distCols = [{ f: "fd_date", label: "Date", type: "date" }, { f: "name", label: "Entry", type: "mono", strong: true }, { f: "town_label", label: "Town / project", trunc: true }, { f: "vehicle_label", label: "Vehicle", trunc: true }, { f: "reading_status", label: "Reading" }, { f: "fd_fuel_type", label: "Fuel" }, { f: "issued_quantity_ltr", label: "Quantity (L)", type: "num", d: 1, total: true }, { f: "warehouse", label: "Store", trunc: true }, { label: "Material Issue", type: "html", get: r => issued(r.mi) }];
   const stores = () => Array.from(new Set(DX.rows(inA).filter(r => r.fuel_entry_type === "Drum").map(r => r.warehouse).concat(DX.rows(distA).map(r => r.warehouse)).filter(Boolean))).sort();
   // real store balances (Bin) for every town the user can issue from — cached for 2 minutes
   const loadStock = async () => {
@@ -1981,9 +1984,9 @@ window.DX.defineApps = function () {
       { id: "distribution", label: "Fuel distribution", icon: "truck", type: "list", doc: "dist", group: "Store & issue", needsDist: true, searchPh: "Search entry, vehicle or material issue…", search: [r => r.name, r => r.vehicle_label, r => r.mi], filters: [{ f: "town_label", label: "Town / project", options: () => [...new Set(DX.rows(distA).map(r => r.town_label).filter(Boolean))].sort() }, { f: "reading_status", label: "Reading status", options: ["Working", "Not Working", "Not Applicable"] }], columns: distCols },
       { id: "newissue", label: "Issue to vehicle", icon: "plus", type: "form", doc: "dist", group: "Store & issue", needsDist: true },
       { id: "ledger", label: "Stock ledger", icon: "swap", group: "Store & issue", needsDist: true, docs: ["inward", "dist"], render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Drum inward and vehicle issues since ${DX.fmtDate(WINDOW().from_date)}, newest first.</span></div>` + DX.table([{ f: "date", label: "Date", type: "date" }, { f: "ref", label: "Voucher", type: "mono" }, { f: "store", label: "Store", trunc: true }, { f: "fuel", label: "Fuel" }, { label: "In (L)", type: "num", d: 1, get: l => (l.dir > 0 ? l.qty : "") }, { label: "Out (L)", type: "num", d: 1, get: l => (l.dir < 0 ? l.qty : "") }], ledger(), { maxh: "68vh" }), { icon: "swap", tone: "cyan" }) },
-      { id: "approvals", label: "Invoice approvals", icon: "inbox", group: "Accounts", docs: ["inward"], count: () => pending().length, render: () => DX.card("Invoice approvals", pending().map(r => `<div class="dx-appr"><div class="dx-appr-main"><div class="dx-appr-title">${esc(r.pi)} <span class="dx-muted" style="font-weight:400">· ${esc(r.name)}</span></div><div class="dx-appr-meta"><span>${esc(r.supplier || r.custom_petrol_pump)}</span><span>${esc(r.town_label || "")}</span><span>${nf(r.quantity, 2)} L ${esc(r.types_of_fuel)}</span><span class="dx-mono">${DX.fmtDate(r.date)}</span></div></div><div class="dx-appr-amt">${DX.money(r.amount)}</div><div class="dx-appr-actions"><button class="dx-btn dx-btn-secondary dx-btn-sm" data-go="${esc(DX.entryRoute(inA, r))}">Open</button><button class="dx-btn dx-btn-ok dx-btn-sm" data-approve="${esc(r.name)}">${ic("check", 13)}Approve</button></div></div>`).join("") || DX.empty("Nothing to approve", "Every fuel invoice in this window has been approved."), { icon: "inbox", tone: "pending", sub: `${pending().length} draft Purchase Invoices · Accounts User / Manager` }),
+      { id: "approvals", label: "Invoice approvals", icon: "inbox", group: "Accounts", docs: ["inward"], count: () => pending().length, render: () => DX.card("Invoice approvals", pending().map(r => `<div class="dx-appr"><div class="dx-appr-main"><div class="dx-appr-title">${esc(r.supplier || r.custom_petrol_pump)} <span class="dx-muted" style="font-weight:400">· ${r.fuel_entry_type === "Vehicle" ? "Direct distribution" : "Fuel inward"}</span></div><div class="dx-appr-meta"><span>${esc(r.town_label || "")}</span><span>${nf(r.quantity, 2)} L ${esc(r.types_of_fuel)}</span><span class="dx-mono">${DX.fmtDate(r.date)}</span></div></div><div class="dx-appr-amt">${DX.money(r.amount)}</div><div class="dx-appr-actions"><button class="dx-btn dx-btn-secondary dx-btn-sm" data-go="${esc(DX.entryRoute(inA, r))}">Open</button><button class="dx-btn dx-btn-ok dx-btn-sm" data-approve="${esc(r.name)}">${ic("check", 13)}Approve</button></div></div>`).join("") || DX.empty("Nothing to approve", "Every fuel invoice in this window has been approved."), { icon: "inbox", tone: "pending", sub: `${pending().length} draft Purchase Invoices · Accounts User / Manager` }),
         bind: ctx => ctx.on("click", async e => { const a = e.target.closest("[data-approve]"); if (!a) return; try { if (await approve(DX.find(inA, a.dataset.approve))) ctx.rerender(); } catch (err) { V.showProblems(err, "Couldn’t approve"); } }) },
-      { id: "report", label: "Inward report", icon: "chart", type: "report", doc: "inward", group: "Reports", title: "Inward & Direct Distribution report", tabs: [{ id: "report", label: "Inward & direct distribution" }, { id: "fdreport", label: "Fuel distribution" }], filters: [{ f: "types_of_fuel", label: "Fuel", options: () => meta().filter_options.fuel_types || ["Diesel", "Petrol"] }, { f: "warehouse", label: "Store", options: () => stores() }], sum: rows => `<span class="dx-num">${nf(DX.sum(rows, "quantity"), 1)}</span> Ltr total`, columns: inwardCols.concat([{ f: "rateltr_ffs", label: "Rate", type: "num", d: 2 }, { f: "pi", label: "PI", type: "mono" }]) },
+      { id: "report", label: "Inward report", icon: "chart", type: "report", doc: "inward", group: "Reports", title: "Inward & Direct Distribution report", tabs: [{ id: "report", label: "Inward & direct distribution" }, { id: "fdreport", label: "Fuel distribution" }], filters: [{ f: "types_of_fuel", label: "Fuel", options: () => meta().filter_options.fuel_types || ["Diesel", "Petrol"] }, { f: "warehouse", label: "Store", options: () => stores() }], sum: rows => `<span class="dx-num">${nf(DX.sum(rows, "quantity"), 1)}</span> Ltr total`, columns: inwardCols.concat([{ f: "rateltr_ffs", label: "Rate", type: "num", d: 2 }, { label: "Invoice", type: "html", get: r => invoiceState(r) }]) },
       { id: "fdreport", label: "Distribution report", icon: "chart", type: "report", doc: "dist", group: "Reports", date: "fd_date", needsDist: true, title: "Fuel Distribution report", tabs: [{ id: "report", label: "Inward & direct distribution" }, { id: "fdreport", label: "Fuel distribution" }], filters: [{ f: "fd_fuel_type", label: "Fuel", options: ["Diesel", "Petrol"] }, { f: "reading_status", label: "Reading status", options: ["Working", "Not Working", "Not Applicable"] }], columns: distCols }
     ]
   });
@@ -2061,7 +2064,7 @@ window.DX.defineApps = function () {
     ],
     validate: d => (d.hdi_contractor_name && d._whErr ? { hdi_contractor_name: d._whErr } : {}),
     onSubmit: () => {},
-    lockBanner: d => d.material_issue ? `<b>Submitted</b> — Material Issue <span class="dx-link">${esc(d.material_issue)}</span> issued from the contractor’s warehouse.` : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
+    lockBanner: d => d.material_issue ? "<b>Submitted</b> — Material Issue posted from the contractor’s warehouse." : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
     detailExtra: d => (d.latitude || d.longitude ? `<div class="dx-note">${ic("pin", 16)}<div>Location on record: <b class="dx-mono">${esc(d.latitude)}, ${esc(d.longitude)}</b></div></div>` : ""),
     detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
@@ -2087,16 +2090,23 @@ window.DX.defineApps = function () {
   }
   // the form engine copies field definitions, so picked HSC rows are remembered here (not on the field)
   const SEEN = {};
+  // link fields show the consumer, never the HSC record ID — names are fetched once per batch of rows
+  const HSCN = {};
+  const hscName = id => (id ? HSCN[id] || (SEEN[id] && SEEN[id].consumer) || "" : "");
+  const fillHscNames = async ids => {
+    const need = [...new Set((ids || []).filter(x => x && !(x in HSCN)))]; if (!need.length) return;
+    try { const rows = await DX.call("frappe.client.get_list", { doctype: "HSC Details Inhouse", filters: DX.json([["name", "in", need]]), fields: DX.json(["name", "hdi_house_owner_name"]), limit_page_length: need.length }); (rows || []).forEach(r => (HSCN[r.name] = r.hdi_house_owner_name || "")); } catch (_) { /* labels fall back to "HSC connection" */ }
+  };
   const hscPick = {
     f: "hsc_reference", label: "HSC no.", type: "link", req: true, span: 2, searchPh: "Search HSC, consumer, mobile…",
-    search: async q => ((await DX.call(API + "search_hsc_installations_for_picker", { search: q, filters: DX.json({ search: q }), limit: 25 }, { get: true })).rows || []).map(r => (SEEN[r.id] = { value: r.id, label: `${r.id} - ${r.consumer || ""}`, sub: [r.town_label, r.mobile ? "••" + String(r.mobile).slice(-4) : "", r.status].filter(Boolean).join(" · "), town: r.town, contractor: r.contractor, supervisor: r.supervisor })),
-    options: d => { const seen = Object.values(SEEN); if (d.hsc_reference && !seen.some(x => x.value === d.hsc_reference)) seen.push({ value: d.hsc_reference, label: d.hsc_reference }); return seen; },
+    search: async q => ((await DX.call(API + "search_hsc_installations_for_picker", { search: q, filters: DX.json({ search: q }), limit: 25 }, { get: true })).rows || []).map(r => (HSCN[r.id] = r.consumer || "", SEEN[r.id] = { value: r.id, label: r.consumer || "HSC connection", consumer: r.consumer || "", sub: [r.town_label, r.mobile ? "••" + String(r.mobile).slice(-4) : "", r.status].filter(Boolean).join(" · "), town: r.town, contractor: r.contractor, supervisor: r.supervisor })),
+    options: d => { const seen = Object.values(SEEN); if (d.hsc_reference && !seen.some(x => x.value === d.hsc_reference)) seen.push({ value: d.hsc_reference, label: hscName(d.hsc_reference) || "HSC connection" }); return seen; },
     onSet: d => { const h = SEEN[d.hsc_reference]; if (h) Object.assign(d, { ihr_townproject: h.town || d.ihr_townproject, ihr_contractor_name: h.contractor || d.ihr_contractor_name, ihr_supervisor_name: h.supervisor || d.ihr_supervisor_name }); }
   };
   const rep = {
     key: "rep", doctype: "Inhouse HSC Repairing",
     get canCreate() { return B.permissions.can_create_repair !== false; },
-    entity: { singular: "Repair", plural: "Repairs", title: r => String(r.name).trim(), sub: r => `${r.hsc_reference} · ${lbl("towns", r.ihr_townproject)}`, date: "select_date" },
+    entity: { singular: "Repair", plural: "Repairs", title: r => String(r.name).trim(), sub: r => `${hscName(r.hsc_reference) || "HSC connection"} · ${lbl("towns", r.ihr_townproject)}`, date: "select_date" },
     newLabel: "New repairing", newTitle: "Create HSC repairing", submitBtn: "Submit / close",
     status: stStatus, statusKey: stKey, statusFilter: inst.statusFilter,
     defaults: () => ({ select_date: DX.TODAY }),
@@ -2116,8 +2126,8 @@ window.DX.defineApps = function () {
     detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this repair?", sub: "Cancelled records can’t be edited again.", ok: "Cancel repair", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_repairing", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
       counts: () => ({ all: B.counts.repairs, draft: B.counts.repair_draft, submitted: B.counts.repair_submitted, cancelled: B.counts.repair_cancelled }),
-      query: listQuery("get_hsc_repairs", fromRep, p => ({ town: p.filters.ihr_townproject || "" })),
-      get: async name => fromRep(await DX.call(API + "get_hsc_doc", { doctype: "Inhouse HSC Repairing", name }, { get: true })),
+      query: async p => { const r = await listQuery("get_hsc_repairs", fromRep, q => ({ town: q.filters.ihr_townproject || "" }))(p); await fillHscNames(r.rows.map(x => x.hsc_reference)); return r; },
+      get: async name => { const d = fromRep(await DX.call(API + "get_hsc_doc", { doctype: "Inhouse HSC Repairing", name }, { get: true })); await fillHscNames([d.hsc_reference]); return d; },
       save: async d => { const r = fromRep(await DX.call(API + "save_hsc_repairing", { data: DX.json(toRep(d)) })); refreshCounts(); return r; },
       submit: async name => { const r = await DX.call(API + "submit_or_close_hsc_repairing", { name }); refreshCounts(); return fromRep(r); }
     }
@@ -2133,9 +2143,10 @@ window.DX.defineApps = function () {
     const r = await DX.call(API + "get_hsc_reports", { report_type: type, filters: DX.json({ from: f.from, to: f.to, town: f.town || "", zone: "", lat: f.lat || "" }) }, { get: true });
     const heads = r.heads || [], dateIdx = heads.findIndex(h => /date/i.test(h)), statusIdx = heads.indexOf("Status");
     const rows = (r.rows || []).map(a => { const o = { _date: DX.day(a[dateIdx]), name: a[0], docstatus: statusIdx > -1 ? ["Draft", "Submitted", "Cancelled"].indexOf(a[statusIdx]) : 0 }; heads.forEach((h, i) => (o["c" + i] = LINK_HEADS[h] ? lbl(LINK_HEADS[h], a[i]) : a[i])); return o; });
+    const hi = heads.findIndex((h, i) => i > 0 && /^hsc no/i.test(h)); if (hi > -1) await fillHscNames(rows.map(o => o["c" + hi]));
     B.rep[type] = { key, heads, rows, summary: r.summary || {}, title: r.title };
   };
-  const reportCols = type => ((B.rep[type] || {}).heads || []).map((h, i) => (PHOTO.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? `<a class="dx-link" href="${esc(r["c" + i])}" target="_blank" rel="noopener">View</a>` : "") } : MASK.test(h) ? { f: "c" + i, label: h, type: "mask" } : /date/i.test(h) ? { f: "c" + i, label: h, type: "date" } : i === 0 ? { f: "c" + i, label: h, type: "mono", strong: true } : /^mdpe/i.test(h) || /^brass|^water meter|^valve/i.test(h) ? { f: "c" + i, label: h, type: "num", d: 2, total: true } : NUM.test(h) ? { f: "c" + i, label: h } : { f: "c" + i, label: h, trunc: /address|remarks|contractor|town/i.test(h) }));
+  const reportCols = type => ((B.rep[type] || {}).heads || []).map((h, i) => (i > 0 && /^hsc no/i.test(h) ? { label: "Consumer (HSC)", get: r => hscName(r["c" + i]) || "—", trunc: true } : /^material issue$/i.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? DX.status("Issued", "ok") : "<span class=\"dx-faint\">—</span>") } : /^amended from$/i.test(h) ? { label: h, get: r => (r["c" + i] ? "Amended" : "—") } : PHOTO.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? `<a class="dx-link" href="${esc(r["c" + i])}" target="_blank" rel="noopener">View</a>` : "") } : MASK.test(h) ? { f: "c" + i, label: h, type: "mask" } : /date/i.test(h) && !/updated/i.test(h) ? { f: "c" + i, label: h, type: "date" } : i === 0 ? { f: "c" + i, label: h, type: "mono", strong: true } : /^mdpe/i.test(h) || /^brass|^water meter|^valve/i.test(h) ? { f: "c" + i, label: h, type: "num", d: 2, total: true } : NUM.test(h) ? { f: "c" + i, label: h } : { f: "c" + i, label: h, trunc: /address|remarks|contractor|town/i.test(h) }));
   const townFilter = f => ({ f, label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v), remote: true });
 
   const MASTER_TABS = [
@@ -2172,7 +2183,7 @@ window.DX.defineApps = function () {
       { id: "installations", label: "HSC installation", icon: "home", type: "list", doc: "inst", group: "Main", count: () => B.counts.installations, searchPh: "Search HSC no., consumer, mobile…", filters: [{ f: "hdi_townproject", label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v) }],
         columns: [{ f: "name", label: "HSC no.", type: "mono", strong: true }, { f: "hdi_house_owner_name", label: "Consumer" }, { label: "Town and project", get: r => lbl("towns", r.hdi_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.hdi_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(inst, r) }] },
       { id: "repairing", label: "HSC repairing", icon: "wrench", type: "list", doc: "rep", group: "Main", count: () => B.counts.repairs, searchPh: "Search ID, HSC no.…", dateFilter: false, filters: [{ f: "ihr_townproject", label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v) }],
-        columns: [{ label: "HSC repairing no", type: "mono", strong: true, get: r => String(r.name).trim() }, { f: "hsc_reference", label: "HSC no.", type: "mono" }, { label: "Town / project", get: r => lbl("towns", r.ihr_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.ihr_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(rep, r) }] },
+        columns: [{ label: "HSC repairing no", type: "mono", strong: true, get: r => String(r.name).trim() }, { label: "Consumer (HSC)", get: r => hscName(r.hsc_reference) || "—", trunc: true }, { label: "Town / project", get: r => lbl("towns", r.ihr_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.ihr_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(rep, r) }] },
       { id: "report", label: "Reports", icon: "chart", type: "report", doc: "inst", group: "Main", title: "HSC Inhouse Installation Report", monthDefault: true, masked: true, remote: true, noLink: true, date: "_date", docs: [], tabs: [{ id: "report", label: "Installation" }, { id: "represport", label: "Repairing" }],
         load: async () => { const f = V.reportFilters(app, app.screens.find(s => s.id === "report")); if (f.to > DX.TODAY) f.to = DX.TODAY; await loadReport("installation", f); },
         rows: () => (B.rep.installation || {}).rows || [],

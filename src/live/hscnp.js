@@ -71,8 +71,8 @@
     submitTitle: "Submit this connection?", submitOk: "Submit & issue stock", submitSub: "Submitting locks the entry and creates a Stock Entry (Material Issue).", submitLinesTitle: "Will be issued",
     submitLines: d => [["MDPE Pipe (mtr)", d.mdpe_pipemtr]].concat(FITTINGS.map(([f, , item]) => [item, d[f]])).filter(l => +l[1] > 0).map(([k, v]) => [k, nf(v)]),
     submitNote: d => d.electrofusion_saddle ? `${esc(d.electrofusion_saddle)} is recorded on the entry but not issued from stock.` : "",
-    submitToast: d => d.material_issue ? `Submitted · Material Issue <span class="dx-mono">${esc(d.material_issue)}</span> created` : `Submitted · <span class="dx-mono">${esc(d.name)}</span>`,
-    lockBanner: d => d.material_issue ? `<b>Submitted</b> — materials issued via <span class="dx-link">${esc(d.material_issue)}</span>` : "<b>Submitted</b> — entry is locked.",
+    submitToast: d => d.material_issue ? "Submitted · materials issued from the contractor’s store" : "Submitted",
+    lockBanner: d => d.material_issue ? "<b>Submitted</b> — materials issued from the contractor’s store (Material Issue posted)." : "<b>Submitted</b> — entry is locked.",
     formNote: d => `${[d.mdpe_pipemtr].concat(FITTINGS.map(([f]) => d[f])).filter(v => +v > 0).length} material lines · ${photos(d)}/4 photos`,
     api: {
       ttl: 30000,

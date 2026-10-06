@@ -61,6 +61,30 @@ def _warehouses():
     return rows
 
 
+# Source labels never show a record ID — they show what a person recognises (consumer, junctions, grade).
+SOURCE_TITLE_FIELDS = {
+    "HSC Details Inhouse": ("hdi_house_owner_name",),
+    "Inhouse HSC Repairing": ("hsc_reference",),
+    "Pour Card": ("from_junction", "to_junction"),
+    "Concrete Entry": ("concrete_grade", "quantity_of_concrete"),
+}
+
+
+def _source_title(doctype, r):
+    if doctype == "HSC Details Inhouse":
+        return r.get("hdi_house_owner_name") or ""
+    if doctype == "Inhouse HSC Repairing":
+        ref = r.get("hsc_reference")
+        return (frappe.db.get_value("HSC Details Inhouse", ref, "hdi_house_owner_name") if ref else "") or ""
+    if doctype == "HSC Inhouse NP-ll":
+        return r.name  # the record name is the house owner's name
+    if doctype == "Pour Card":
+        return " → ".join(x for x in (r.get("from_junction"), r.get("to_junction")) if x)
+    if doctype == "Concrete Entry":
+        return " · ".join(x for x in (r.get("concrete_grade"), (f"{flt(r.get('quantity_of_concrete')):g} m³" if r.get("quantity_of_concrete") else "")) if x)
+    return ""
+
+
 def _sources(names):
     out = {}
     if not names:
@@ -69,8 +93,11 @@ def _sources(names):
         try:
             if not frappe.db.exists("DocType", doctype) or not frappe.get_meta(doctype).has_field(field):
                 continue
-            for r in frappe.get_all(doctype, filters={field: ["in", names]}, fields=["name", field]):
-                out[r[field]] = f"{label} · {r.name}"
+            meta = frappe.get_meta(doctype)
+            extra = [f for f in SOURCE_TITLE_FIELDS.get(doctype, ()) if meta.has_field(f)]
+            rows = frappe.get_all(doctype, filters={field: ["in", names]}, fields=["name", field] + extra)
+            for r in rows:
+                out[r[field]] = f"{label} · {_source_title(doctype, r)}".rstrip(" ·")
         except Exception:
             frappe.clear_messages()
     if frappe.db.exists("DocType", "PEB FT Progress Log"):

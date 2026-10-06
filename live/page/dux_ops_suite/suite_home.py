@@ -88,10 +88,13 @@ def _home_fuelstock():
 def _home_hscin():
     reps = frappe.get_list("Inhouse HSC Repairing", filters={"docstatus": 0}, fields=["name", "hsc_reference"], limit_page_length=50, order_by="modified desc")
     recent = frappe.get_list("HSC Details Inhouse", fields=["name", "docstatus", "select_date", "hdi_house_owner_name"], limit_page_length=5, order_by="modified desc")
+    # link fields show the consumer, never the HSC record ID
+    refs = list({r.hsc_reference for r in reps[:3] if r.hsc_reference})
+    consumer = dict(frappe.get_all("HSC Details Inhouse", filters={"name": ["in", refs]}, fields=["name", "hdi_house_owner_name"], as_list=True)) if refs else {}
     return {
         "value": _count("HSC Details Inhouse", {"docstatus": ["<", 2]}), "label": "installations",
         "today": _count("HSC Details Inhouse", {"select_date": today()}), "drafts": _count("HSC Details Inhouse", {"docstatus": 0}),
-        "attention": [{"title": r.name.strip(), "sub": f"Draft repair · {r.hsc_reference or ''}", "doc": "rep", "name": r.name, "tag": "Draft repair"} for r in reps[:3]], "attention_count": len(reps),
+        "attention": [{"title": r.name.strip(), "sub": f"Draft repair · {consumer.get(r.hsc_reference) or 'HSC connection'}", "doc": "rep", "name": r.name, "tag": "Draft repair"} for r in reps[:3]], "attention_count": len(reps),
         "recent": [{"title": r.hdi_house_owner_name or r.name, "sub": r.name, "date": str(r.select_date or ""), "status": _st(r.docstatus), "doc": "inst", "name": r.name} for r in recent],
     }
 
@@ -118,7 +121,7 @@ def _home_fuelin(include_distribution=False):
     out = {
         "value": round(sum(flt(f.quantity) for f in fs)), "label": "L inward this month",
         "today": sum(1 for f in fs if str(f.date) == today()), "drafts": 0,
-        "attention": [{"title": f"{p.name} · ₹{flt(p.grand_total):,.0f}", "sub": f"{p.supplier} · {p.custom_fuel_stock_ref}", "doc": "inward", "name": p.custom_fuel_stock_ref, "tag": "Approval pending"} for p in pis[:5]], "attention_count": len(pis),
+        "attention": [{"title": f"{p.supplier} · ₹{flt(p.grand_total):,.0f}", "sub": "Fuel purchase invoice · waiting for Accounts", "doc": "inward", "name": p.custom_fuel_stock_ref, "tag": "Approval pending"} for p in pis[:5]], "attention_count": len(pis),
         "recent": [{"title": f"{f.name} · {flt(f.quantity):g} L {f.types_of_fuel or ''}", "sub": ("Fuel inward" if f.fuel_entry_type == "Drum" else "Direct distribution") + f" · ₹{flt(f.amount):,.0f}", "date": str(f.date or ""), "status": ["Submitted", "ok"], "doc": "inward", "name": f.name} for f in fs[:5]],
     }
     if include_distribution:

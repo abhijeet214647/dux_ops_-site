@@ -69,7 +69,7 @@
     ],
     validate: d => (d.hdi_contractor_name && d._whErr ? { hdi_contractor_name: d._whErr } : {}),
     onSubmit: () => {},
-    lockBanner: d => d.material_issue ? `<b>Submitted</b> — Material Issue <span class="dx-link">${esc(d.material_issue)}</span> issued from the contractor’s warehouse.` : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
+    lockBanner: d => d.material_issue ? "<b>Submitted</b> — Material Issue posted from the contractor’s warehouse." : "<b>Submitted</b> — Material Issue is switched off for HSC on this site, so no stock was moved.",
     detailExtra: d => (d.latitude || d.longitude ? `<div class="dx-note">${ic("pin", 16)}<div>Location on record: <b class="dx-mono">${esc(d.latitude)}, ${esc(d.longitude)}</b></div></div>` : ""),
     detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this installation?", sub: "Cancelled records can’t be edited again.", ok: "Cancel installation", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_installation", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
@@ -95,16 +95,23 @@
   }
   // the form engine copies field definitions, so picked HSC rows are remembered here (not on the field)
   const SEEN = {};
+  // link fields show the consumer, never the HSC record ID — names are fetched once per batch of rows
+  const HSCN = {};
+  const hscName = id => (id ? HSCN[id] || (SEEN[id] && SEEN[id].consumer) || "" : "");
+  const fillHscNames = async ids => {
+    const need = [...new Set((ids || []).filter(x => x && !(x in HSCN)))]; if (!need.length) return;
+    try { const rows = await DX.call("frappe.client.get_list", { doctype: "HSC Details Inhouse", filters: DX.json([["name", "in", need]]), fields: DX.json(["name", "hdi_house_owner_name"]), limit_page_length: need.length }); (rows || []).forEach(r => (HSCN[r.name] = r.hdi_house_owner_name || "")); } catch (_) { /* labels fall back to "HSC connection" */ }
+  };
   const hscPick = {
     f: "hsc_reference", label: "HSC no.", type: "link", req: true, span: 2, searchPh: "Search HSC, consumer, mobile…",
-    search: async q => ((await DX.call(API + "search_hsc_installations_for_picker", { search: q, filters: DX.json({ search: q }), limit: 25 }, { get: true })).rows || []).map(r => (SEEN[r.id] = { value: r.id, label: `${r.id} - ${r.consumer || ""}`, sub: [r.town_label, r.mobile ? "••" + String(r.mobile).slice(-4) : "", r.status].filter(Boolean).join(" · "), town: r.town, contractor: r.contractor, supervisor: r.supervisor })),
-    options: d => { const seen = Object.values(SEEN); if (d.hsc_reference && !seen.some(x => x.value === d.hsc_reference)) seen.push({ value: d.hsc_reference, label: d.hsc_reference }); return seen; },
+    search: async q => ((await DX.call(API + "search_hsc_installations_for_picker", { search: q, filters: DX.json({ search: q }), limit: 25 }, { get: true })).rows || []).map(r => (HSCN[r.id] = r.consumer || "", SEEN[r.id] = { value: r.id, label: r.consumer || "HSC connection", consumer: r.consumer || "", sub: [r.town_label, r.mobile ? "••" + String(r.mobile).slice(-4) : "", r.status].filter(Boolean).join(" · "), town: r.town, contractor: r.contractor, supervisor: r.supervisor })),
+    options: d => { const seen = Object.values(SEEN); if (d.hsc_reference && !seen.some(x => x.value === d.hsc_reference)) seen.push({ value: d.hsc_reference, label: hscName(d.hsc_reference) || "HSC connection" }); return seen; },
     onSet: d => { const h = SEEN[d.hsc_reference]; if (h) Object.assign(d, { ihr_townproject: h.town || d.ihr_townproject, ihr_contractor_name: h.contractor || d.ihr_contractor_name, ihr_supervisor_name: h.supervisor || d.ihr_supervisor_name }); }
   };
   const rep = {
     key: "rep", doctype: "Inhouse HSC Repairing",
     get canCreate() { return B.permissions.can_create_repair !== false; },
-    entity: { singular: "Repair", plural: "Repairs", title: r => String(r.name).trim(), sub: r => `${r.hsc_reference} · ${lbl("towns", r.ihr_townproject)}`, date: "select_date" },
+    entity: { singular: "Repair", plural: "Repairs", title: r => String(r.name).trim(), sub: r => `${hscName(r.hsc_reference) || "HSC connection"} · ${lbl("towns", r.ihr_townproject)}`, date: "select_date" },
     newLabel: "New repairing", newTitle: "Create HSC repairing", submitBtn: "Submit / close",
     status: stStatus, statusKey: stKey, statusFilter: inst.statusFilter,
     defaults: () => ({ select_date: DX.TODAY }),
@@ -124,8 +131,8 @@
     detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this repair?", sub: "Cancelled records can’t be edited again.", ok: "Cancel repair", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_repairing", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
     api: {
       counts: () => ({ all: B.counts.repairs, draft: B.counts.repair_draft, submitted: B.counts.repair_submitted, cancelled: B.counts.repair_cancelled }),
-      query: listQuery("get_hsc_repairs", fromRep, p => ({ town: p.filters.ihr_townproject || "" })),
-      get: async name => fromRep(await DX.call(API + "get_hsc_doc", { doctype: "Inhouse HSC Repairing", name }, { get: true })),
+      query: async p => { const r = await listQuery("get_hsc_repairs", fromRep, q => ({ town: q.filters.ihr_townproject || "" }))(p); await fillHscNames(r.rows.map(x => x.hsc_reference)); return r; },
+      get: async name => { const d = fromRep(await DX.call(API + "get_hsc_doc", { doctype: "Inhouse HSC Repairing", name }, { get: true })); await fillHscNames([d.hsc_reference]); return d; },
       save: async d => { const r = fromRep(await DX.call(API + "save_hsc_repairing", { data: DX.json(toRep(d)) })); refreshCounts(); return r; },
       submit: async name => { const r = await DX.call(API + "submit_or_close_hsc_repairing", { name }); refreshCounts(); return fromRep(r); }
     }
@@ -141,9 +148,10 @@
     const r = await DX.call(API + "get_hsc_reports", { report_type: type, filters: DX.json({ from: f.from, to: f.to, town: f.town || "", zone: "", lat: f.lat || "" }) }, { get: true });
     const heads = r.heads || [], dateIdx = heads.findIndex(h => /date/i.test(h)), statusIdx = heads.indexOf("Status");
     const rows = (r.rows || []).map(a => { const o = { _date: DX.day(a[dateIdx]), name: a[0], docstatus: statusIdx > -1 ? ["Draft", "Submitted", "Cancelled"].indexOf(a[statusIdx]) : 0 }; heads.forEach((h, i) => (o["c" + i] = LINK_HEADS[h] ? lbl(LINK_HEADS[h], a[i]) : a[i])); return o; });
+    const hi = heads.findIndex((h, i) => i > 0 && /^hsc no/i.test(h)); if (hi > -1) await fillHscNames(rows.map(o => o["c" + hi]));
     B.rep[type] = { key, heads, rows, summary: r.summary || {}, title: r.title };
   };
-  const reportCols = type => ((B.rep[type] || {}).heads || []).map((h, i) => (PHOTO.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? `<a class="dx-link" href="${esc(r["c" + i])}" target="_blank" rel="noopener">View</a>` : "") } : MASK.test(h) ? { f: "c" + i, label: h, type: "mask" } : /date/i.test(h) ? { f: "c" + i, label: h, type: "date" } : i === 0 ? { f: "c" + i, label: h, type: "mono", strong: true } : /^mdpe/i.test(h) || /^brass|^water meter|^valve/i.test(h) ? { f: "c" + i, label: h, type: "num", d: 2, total: true } : NUM.test(h) ? { f: "c" + i, label: h } : { f: "c" + i, label: h, trunc: /address|remarks|contractor|town/i.test(h) }));
+  const reportCols = type => ((B.rep[type] || {}).heads || []).map((h, i) => (i > 0 && /^hsc no/i.test(h) ? { label: "Consumer (HSC)", get: r => hscName(r["c" + i]) || "—", trunc: true } : /^material issue$/i.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? DX.status("Issued", "ok") : "<span class=\"dx-faint\">—</span>") } : /^amended from$/i.test(h) ? { label: h, get: r => (r["c" + i] ? "Amended" : "—") } : PHOTO.test(h) ? { label: h, type: "html", get: r => (r["c" + i] ? `<a class="dx-link" href="${esc(r["c" + i])}" target="_blank" rel="noopener">View</a>` : "") } : MASK.test(h) ? { f: "c" + i, label: h, type: "mask" } : /date/i.test(h) && !/updated/i.test(h) ? { f: "c" + i, label: h, type: "date" } : i === 0 ? { f: "c" + i, label: h, type: "mono", strong: true } : /^mdpe/i.test(h) || /^brass|^water meter|^valve/i.test(h) ? { f: "c" + i, label: h, type: "num", d: 2, total: true } : NUM.test(h) ? { f: "c" + i, label: h } : { f: "c" + i, label: h, trunc: /address|remarks|contractor|town/i.test(h) }));
   const townFilter = f => ({ f, label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v), remote: true });
 
   const MASTER_TABS = [
@@ -180,7 +188,7 @@
       { id: "installations", label: "HSC installation", icon: "home", type: "list", doc: "inst", group: "Main", count: () => B.counts.installations, searchPh: "Search HSC no., consumer, mobile…", filters: [{ f: "hdi_townproject", label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v) }],
         columns: [{ f: "name", label: "HSC no.", type: "mono", strong: true }, { f: "hdi_house_owner_name", label: "Consumer" }, { label: "Town and project", get: r => lbl("towns", r.hdi_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.hdi_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(inst, r) }] },
       { id: "repairing", label: "HSC repairing", icon: "wrench", type: "list", doc: "rep", group: "Main", count: () => B.counts.repairs, searchPh: "Search ID, HSC no.…", dateFilter: false, filters: [{ f: "ihr_townproject", label: "Town / project", options: () => ms("towns"), display: v => lbl("towns", v) }],
-        columns: [{ label: "HSC repairing no", type: "mono", strong: true, get: r => String(r.name).trim() }, { f: "hsc_reference", label: "HSC no.", type: "mono" }, { label: "Town / project", get: r => lbl("towns", r.ihr_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.ihr_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(rep, r) }] },
+        columns: [{ label: "HSC repairing no", type: "mono", strong: true, get: r => String(r.name).trim() }, { label: "Consumer (HSC)", get: r => hscName(r.hsc_reference) || "—", trunc: true }, { label: "Town / project", get: r => lbl("towns", r.ihr_townproject), trunc: true }, { label: "Contractor", get: r => lbl("contractors", r.ihr_contractor_name), trunc: true }, { f: "mdpe_pipe_mtr", label: "MDPE (m)", type: "num", d: 1 }, { f: "select_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(rep, r) }] },
       { id: "report", label: "Reports", icon: "chart", type: "report", doc: "inst", group: "Main", title: "HSC Inhouse Installation Report", monthDefault: true, masked: true, remote: true, noLink: true, date: "_date", docs: [], tabs: [{ id: "report", label: "Installation" }, { id: "represport", label: "Repairing" }],
         load: async () => { const f = V.reportFilters(app, app.screens.find(s => s.id === "report")); if (f.to > DX.TODAY) f.to = DX.TODAY; await loadReport("installation", f); },
         rows: () => (B.rep.installation || {}).rows || [],
