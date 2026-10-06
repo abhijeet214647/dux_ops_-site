@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+*.pyc
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
+.DS_Store
+Thumbs.db

@@ -1,0 +1,37 @@
+<!-- no-cache -->
+<!-- no-breadcrumbs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>DUX Ops</title>
+<link rel="icon" href="/assets/dux_portal/ops/dux-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/dux_portal/ops/ops.css?v=20261006081740">
+<style>html,body{margin:0;background:#E9EBF1}@media (prefers-color-scheme: dark){html,body{background:#05070B}}.dx-m-boot{display:grid;place-items:center;min-height:60vh}.dx-m-bootmark{width:56px;height:56px;border-radius:18px;background:linear-gradient(150deg,#6D5EF6,#4A3CD0);box-shadow:0 6px 18px rgba(109,94,246,.4);animation:dxbp 1.4s ease-in-out infinite}@keyframes dxbp{0%,100%{transform:scale(1)}50%{transform:scale(.9);opacity:.7}}</style>
+</head>
+<body>
+<div class="dx-root dx-m" id="dxRoot" data-theme="light">
+  <header class="dx-m-top" id="dxTop"></header>
+  <nav class="dx-m-chips" id="dxChips" aria-label="Screens" hidden></nav>
+  <main class="dx-m-view" id="dxView"><div id="dxBoot" class="dx-m-boot"><span class="dx-m-bootmark"></span></div></main>
+  <nav class="dx-m-tabbar" id="dxTabbar" aria-label="Apps"></nav>
+  <div class="dx-m-scrim" data-act="drawer-close"></div>
+  <aside class="dx-m-drawer" id="dxDrawer" aria-label="Menu" aria-hidden="true"></aside>
+  <div class="dx-toasts" role="status"></div>
+</div>
+<script>
+  /* Frappe rewrites the comment below into `frappe.csrf_token = "…"`, so the global must exist first (no Python controller needed). */
+  window.frappe = window.frappe || {};
+</script>
+<!-- csrf_token -->
+<script>window.DX_CSRF = (window.frappe && window.frappe.csrf_token) || "";</script>
+<script src="/assets/dux_portal/ops/ops.js?v=20261006081740" defer></script>
+</body>
+</html>
