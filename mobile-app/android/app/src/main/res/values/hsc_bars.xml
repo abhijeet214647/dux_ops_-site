@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- System bars match the HSC app header (light theme). -->
+    <color name="hsc_bar">#FFFFFF</color>
+    <bool name="hsc_light_bars">true</bool>
+</resources>

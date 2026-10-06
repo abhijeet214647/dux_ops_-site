@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 15+: targetSdk 35 forces edge-to-edge, which put the page under the
+         status bar and stopped the keyboard from resizing the WebView. Opt out
+         (valid while targetSdk stays 35; revisit when moving to 36). -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:statusBarColor">@color/hsc_bar</item>
+        <item name="android:windowLightStatusBar">@bool/hsc_light_bars</item>
+        <item name="android:navigationBarColor">@color/hsc_bar</item>
+        <item name="android:windowLightNavigationBar">@bool/hsc_light_bars</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>
