@@ -1,0 +1,26 @@
+[
+ {
+  "doctype": "Client Script",
+  "name": "Set Default stock entry type",
+  "dt": "Stock Entry",
+  "view": "Form",
+  "enabled": 1,
+  "script": "frappe.ui.form.on('Stock Entry', {\r\n    onload: function(frm) {\n        if (frm.doc.docstatus !== 0) return;  // only drafts - don't rewrite submitted/cancelled entries\r\n\r\n        // ✅ Default set\r\n        if (!frm.doc.stock_entry_type) {\r\n            frm.set_value('stock_entry_type', 'Material Issue');\r\n        }\r\n\r\n        // ✅ Lock field (user change na kare)\r\n        frm.set_df_property('stock_entry_type', 'read_only', 1);\r\n    },\r\n\r\n    refresh: function(frm) {\n        if (frm.doc.docstatus !== 0) return;  // only drafts - don't rewrite submitted/cancelled entries\r\n\r\n        // Ensure always Material Issue\r\n        frm.set_value('stock_entry_type', 'Material Issue');\r\n        frm.set_df_property('stock_entry_type', 'read_only', 1);\r\n    }\r\n});"
+ },
+ {
+  "doctype": "Client Script",
+  "name": "Fetch Auto Warehouse",
+  "dt": "Stock Entry",
+  "view": "Form",
+  "enabled": 1,
+  "script": "frappe.ui.form.on('Stock Entry', {\r\n\r\n    company: function(frm) {\r\n        set_default_warehouse_stock(frm);\r\n        set_cost_center_stock(frm);\r\n    },\r\n\r\n    onload: function(frm) {\r\n        if (frm.doc.company) {\r\n            set_default_warehouse_stock(frm);\r\n            set_cost_center_stock(frm);\r\n        }\r\n    }\r\n});\r\n\r\n\r\n// 🔥 Item select hone par\r\nfrappe.ui.form.on('Stock Entry Detail', {\r\n\r\n    item_code: function(frm, cdt, cdn) {\r\n        set_default_warehouse_stock(frm);\r\n    }\r\n});\r\n\r\n\r\n// 🔥 Warehouse logic (Item Defaults se)\r\nfunction set_default_warehouse_stock(frm) {\n        if (frm.doc.docstatus !== 0) return;  // only drafts - don't rewrite submitted/cancelled entries\r\n\r\n    if (!frm.doc.company) return;\r\n\r\n    let first_item = (frm.doc.items || [])[0];\r\n\r\n    if (!first_item || !first_item.item_code) return;\r\n\r\n    frappe.db.get_doc('Item', first_item.item_code).then(item => {\r\n\r\n        let match = (item.item_defaults || []).find(d =>\r\n            d.company === frm.doc.company\r\n        );\r\n\r\n        if (match && match.default_warehouse) {\r\n\r\n            let warehouse = match.default_warehouse;\r\n\r\n            // ✅ Child table me set\r\n            (frm.doc.items || []).forEach(row => {\r\n                row.s_warehouse = warehouse;\r\n            });\r\n\r\n            // ✅ 🔥 Parent field me bhi set (IMPORTANT)\r\n            frm.set_value('from_warehouse', warehouse);\r\n\r\n            frm.refresh_field('items');\r\n        }\r\n    });\r\n}\r\n\r\n\r\n// 🔥 COST CENTER FIX\r\nfunction set_cost_center_stock(frm) {\n        if (frm.doc.docstatus !== 0) return;  // only drafts - don't rewrite submitted/cancelled entries\r\n\r\n    if (!frm.doc.company) return;\r\n\r\n    frappe.call({\r\n        method: \"frappe.client.get_value\",\r\n        args: {\r\n            doctype: \"Company\",\r\n            filters: { name: frm.doc.company },\r\n            fieldname: [\"cost_center\"]\r\n        },\r\n        async: false,\r\n        callback: function(r) {\r\n\r\n            if (r.message && r.message.cost_center) {\r\n\r\n                (frm.doc.items || []).forEach(row => {\r\n                    row.cost_center = r.message.cost_center;\r\n                });\r\n\r\n                frm.refresh_field('items');\r\n            }\r\n        }\r\n    });\r\n}"
+ },
+ {
+  "doctype": "Client Script",
+  "name": "Default Warehouse In Stock",
+  "dt": "Stock Entry",
+  "view": "Form",
+  "enabled": 1,
+  "script": "frappe.ui.form.on('Stock Entry', {\r\n\r\n    refresh: function(frm) {\r\n        update_parent_warehouse(frm);\r\n    }\r\n\r\n});\r\n\r\n\r\n// 🔹 Child table trigger\r\nfrappe.ui.form.on('Stock Entry Detail', {\r\n\r\n    s_warehouse: function(frm, cdt, cdn) {\r\n        update_parent_warehouse(frm);\r\n    },\r\n\r\n    items_add: function(frm) {\r\n        update_parent_warehouse(frm);\r\n    }\r\n\r\n});\r\n\r\n\r\n// 🔹 Main function\r\nfunction update_parent_warehouse(frm) {\n        if (frm.doc.docstatus !== 0) return;  // only drafts - don't rewrite submitted/cancelled entries\r\n\r\n    if (frm.doc.stock_entry_type !== \"Material Issue\") return;\r\n\r\n    let warehouses = frm.doc.items\r\n        .map(row => row.s_warehouse)\r\n        .filter(w => w);\r\n\r\n    if (warehouses.length === 0) return;\r\n\r\n    let unique = [...new Set(warehouses)];\r\n\r\n    // ✅ Agar sab rows same hai\r\n    if (unique.length === 1) {\r\n        frm.set_value(\"from_warehouse\", unique[0]);\r\n    }\r\n}"
+ }
+]

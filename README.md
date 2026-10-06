@@ -78,5 +78,9 @@ Exact copies of the live files changed on 2026-10-06, kept under their app paths
   cancelling an installation no longer logs a bogus "Inhouse HSC Repairing HSC Inhouse-NNN not found". Live on the bench;
   not committed to the app repo because its `api.py` there carries other people's uncommitted work.
 - `peb/peb/peb/ft_api.py`: `peb_finished_valuation` (the `peb` app has no git repo of its own)
+- `client_scripts/stock_entry_guarded.json`: the 3 site Client Scripts on Stock Entry ("Set Default stock entry type",
+  "Fetch Auto Warehouse", "Default Warehouse In Stock") with a drafts-only guard, same text as jewipl. Without the guard
+  they rewrite a submitted entry on open, so the form shows "Update" instead of Cancel. Applied on raisonigroup 2026-10-06
+  (backup `~/cs_backup_raisonigroup_20261006_101952.json`); jewipl has had it since 2026-09-26.
 
 All new behaviour is behind site_config keys, so sites without them keep the old behaviour.
