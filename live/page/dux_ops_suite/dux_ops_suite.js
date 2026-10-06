@@ -1,5 +1,5 @@
 // DUX Ops Suite — one desk page for 8 field apps (HSC NP-II, Pour Card, PEB, Concrete, Fuel Stock, HSC Inhouse, Maintenance, Fuel Inward).
-// Build 20261006100545. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
+// Build 20261006111307. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -947,7 +947,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261006100545";
+  DX.BUILD = "20261006111307";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -1205,7 +1205,7 @@ window.DX.defineApps = function () {
     submitProblems: d => (d.batches || []).length ? [] : ["Add at least one laying detail (PIPE-ID) before locking."],
     submitLines: d => { const q = cardQ(d); return [["Pipe entries", nf((d.batches || []).length)], ["Pipe length (m)", nf(q.len, 2)], ["Total excavation (m³)", nf(q.exc, 3)], ["Accessory qty", nf(q.acc)]]; },
     lockBanner: d => d.material_issue ? "<b>Lock Entry</b> — Material Issue posted from the contractor’s warehouse." : `<b>Lock Entry</b> — card is submitted. Stock posting on lock is held on this site, so no Material Issue was created.`,
-    detailActions: d => [d.docstatus === 0 && d.can_write !== false && { label: "Add laying details", icon: "plus", tone: "secondary", run: (x, ctx) => layingModal(x, ctx) }, (d.batches || []).length && { label: "Backfilling", icon: "layers", run: x => backfillModal(x) }],
+    detailActions: d => [d.docstatus === 0 && d.can_write !== false && { label: "Add laying details", icon: "plus", tone: "secondary", run: (x, ctx) => layingModal(x, ctx) }, d.docstatus !== 2 && (d.batches || []).length && { label: "Backfilling", icon: "layers", run: x => backfillModal(x) }],
     detailExtra: d => {
       const bs = d.batches || [];
       return DX.card(`Entries <span class="dx-num">(${bs.length})</span>`, bs.length ? DX.table([
@@ -1814,7 +1814,7 @@ window.DX.defineApps = function () {
       return e;
     },
     formNote: d => `${d.fuel_entry_type === "Vehicle" ? "Direct distribution · PR + PI + Material Issue" : "Fuel inward · PR + PI (stock into store)"} · <b>${DX.money((+d.quantity || 0) * (+d.rateltr_ffs || 0))}</b>`,
-    detailActions: d => [meta().can_approve_invoices && d.pi_pending && { label: "Approve invoice", icon: "check", tone: "primary", run: x => approve(x) }, !d.upload_invoice__invoice_copy && { label: "Upload invoice copy", icon: "upload", run: x => uploadInvoice(x) }],
+    detailActions: d => [d.docstatus !== 2 && meta().can_approve_invoices && d.pi_pending && { label: "Approve invoice", icon: "check", tone: "primary", run: x => approve(x) }, d.docstatus !== 2 && !d.upload_invoice__invoice_copy && { label: "Upload invoice copy", icon: "upload", run: x => uploadInvoice(x) }],
     detailExtra: d => DX.card("Documents", `<div class="dx-kv"><div class="k">Purchase Receipt</div><div class="v">${deskLink("purchase-receipt", d.pr)}${d.pr ? DX.status("Submitted", "ok") : ""}</div><div class="k">Purchase Invoice</div><div class="v">${deskLink("purchase-invoice", d.pi)}${d.pi ? (d.pi_pending ? DX.status("Draft · approval pending", "pending") : DX.status("Submitted", "ok")) : ""}</div>${d.mi ? `<div class="k">Material Issue</div><div class="v">${deskLink("stock-entry", d.mi)}${DX.status("Submitted", "ok")}</div>` : ""}<div class="k">Supplier</div><div class="v">${esc(d.supplier || "—")}</div><div class="k">Store</div><div class="v dx-mono">${esc(d.warehouse || "—")}</div></div>`, { icon: "card", tone: "cyan", sub: "created automatically on save" }) + (d.pi_pending ? `<div class="dx-note" style="margin-top:14px">${ic("rupee", 16)}<div>Payment options (advance / pay now by QR) are chosen from the link emailed for this invoice.</div></div>` : "") + "<div style='height:16px'></div>",
     api: {
       ttl: 45000,

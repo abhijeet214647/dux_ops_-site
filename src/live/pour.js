@@ -65,7 +65,7 @@
     submitProblems: d => (d.batches || []).length ? [] : ["Add at least one laying detail (PIPE-ID) before locking."],
     submitLines: d => { const q = cardQ(d); return [["Pipe entries", nf((d.batches || []).length)], ["Pipe length (m)", nf(q.len, 2)], ["Total excavation (m³)", nf(q.exc, 3)], ["Accessory qty", nf(q.acc)]]; },
     lockBanner: d => d.material_issue ? "<b>Lock Entry</b> — Material Issue posted from the contractor’s warehouse." : `<b>Lock Entry</b> — card is submitted. Stock posting on lock is held on this site, so no Material Issue was created.`,
-    detailActions: d => [d.docstatus === 0 && d.can_write !== false && { label: "Add laying details", icon: "plus", tone: "secondary", run: (x, ctx) => layingModal(x, ctx) }, (d.batches || []).length && { label: "Backfilling", icon: "layers", run: x => backfillModal(x) }],
+    detailActions: d => [d.docstatus === 0 && d.can_write !== false && { label: "Add laying details", icon: "plus", tone: "secondary", run: (x, ctx) => layingModal(x, ctx) }, d.docstatus !== 2 && (d.batches || []).length && { label: "Backfilling", icon: "layers", run: x => backfillModal(x) }],
     detailExtra: d => {
       const bs = d.batches || [];
       return DX.card(`Entries <span class="dx-num">(${bs.length})</span>`, bs.length ? DX.table([

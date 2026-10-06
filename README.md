@@ -82,5 +82,8 @@ Exact copies of the live files changed on 2026-10-06, kept under their app paths
   "Fetch Auto Warehouse", "Default Warehouse In Stock") with a drafts-only guard, same text as jewipl. Without the guard
   they rewrite a submitted entry on open, so the form shows "Update" instead of Cancel. Applied on raisonigroup 2026-10-06
   (backup `~/cs_backup_raisonigroup_20261006_101952.json`); jewipl has had it since 2026-09-26.
+- `perms/copy_pour_perms.py`: copies jewipl's Pour Card permissions (Pipe Laying User + Website Manager submit/cancel,
+  Demo User read/create) and the Pipe Laying User rows of the 11 pipe-laying masters to raisonigroup, keeping the
+  existing perms. Run 2026-10-06 (backup `~/pour_perms_backup_raisonigroup_20261006_111102.json`). `DRY=1` previews.
 
 All new behaviour is behind site_config keys, so sites without them keep the old behaviour.
