@@ -1,5 +1,5 @@
 // DUX Ops Suite — one desk page for 8 field apps (HSC NP-II, Pour Card, PEB, Concrete, Fuel Stock, HSC Inhouse, Maintenance, Fuel Inward).
-// Build 20261006111307. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
+// Build 20261007045406. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -947,7 +947,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261006111307";
+  DX.BUILD = "20261007045406";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -1944,11 +1944,18 @@ window.DX.defineApps = function () {
     for (let i = 0; i < towns.length; i += 8) await Promise.all(towns.slice(i, i + 8).map(t => DX.call(P + "get_fuel_distribution_stock", { town_project: t, company }).then(r => { if (r && r.warehouse) out.push({ s: r.warehouse, town: townLabel(t), d: +r.available_stock_ltr || 0, p: +r.fd_petrol_in_stock || 0 }); }, () => null)));
     B.stock = out.sort((a, b) => b.d - a.d); B.stockAt = Date.now(); B.stockCompany = company;
   };
+  // every fuel movement with the vehicle it went to: drum inward (in), issue to vehicle (out), and direct at the pump —
+  // a direct entry receives the fuel into the town store and issues it to the vehicle at once, so it shows both
   function ledger() {
-    return DX.rows(inA).filter(r => r.fuel_entry_type === "Drum").map(r => ({ date: r.date, ref: r.name, store: r.warehouse, fuel: r.types_of_fuel, qty: +r.quantity, dir: 1 })).concat(DX.rows(distA).map(r => ({ date: r.fd_date, ref: r.name, store: r.warehouse, fuel: r.fd_fuel_type, qty: +r.issued_quantity_ltr, dir: -1 }))).sort((a, b) => b.date.localeCompare(a.date) || a.dir - b.dir);
+    const inward = DX.rows(inA).map(r => {
+      const qty = +r.quantity || 0, direct = r.fuel_entry_type === "Vehicle";
+      return { date: r.date, ref: r.name, kind: direct ? "Direct at pump" : "Drum inward", vehicle: direct ? r.vehicle_label || vehicleLabel(r.custom_vehicles) : "", store: r.warehouse, fuel: r.types_of_fuel, qty, inQ: qty, outQ: direct ? qty : 0, dir: direct ? 0 : 1 };
+    });
+    const issues = DX.rows(distA).filter(r => r.docstatus !== 2).map(r => { const qty = +r.issued_quantity_ltr || 0; return { date: r.fd_date, ref: r.name, kind: "Issue to vehicle", vehicle: r.vehicle_label || vehicleLabel(r.fd_vehicle_name), store: r.warehouse, fuel: r.fd_fuel_type, qty, inQ: 0, outQ: qty, dir: -1 }; });
+    return inward.concat(issues).sort((a, b) => b.date.localeCompare(a.date) || a.dir - b.dir);
   }
   const storeTable = (rows, maxh) => ((rows || []).length ? DX.table([{ f: "s", label: "Store", strong: true }, { f: "town", label: "Town / project", hideSm: true }, { f: "d", label: "Diesel (L)", type: "num", d: 1, total: true }, { f: "p", label: "Petrol (L)", type: "num", d: 1, total: true }, { label: "Status", type: "status", get: r => (r.d < 50 ? DX.status("Low", "pending") : DX.status("OK", "ok")) }], rows, { foot: true, maxh }) : DX.empty("No store balances", "No fuel store is configured for your towns yet."));
-  const movements = n => ledger().slice(0, n).map(l => `<div class="dx-feed-row"><span class="dx-tile${l.dir > 0 ? " dx-tile-ok" : " dx-tile-pending"}">${ic(l.dir > 0 ? "download" : "truck", 14)}</span><div class="dx-feed-main"><div class="dx-feed-title">${l.dir > 0 ? "In" : "Out"} · <span class="dx-mono">${nf(l.qty, 1)} L</span> ${esc(l.fuel)}</div><div class="dx-feed-sub">${esc(l.store)} · ${esc(l.ref)}</div></div><div class="dx-feed-end"><span class="dx-mono dx-muted" style="font-size:11px">${DX.fmtDate(l.date)}</span></div></div>`).join("") || DX.empty("No movements", "");
+  const movements = n => ledger().slice(0, n).map(l => `<div class="dx-feed-row"><span class="dx-tile${l.dir > 0 ? " dx-tile-ok" : " dx-tile-pending"}">${ic(l.dir > 0 ? "download" : "truck", 14)}</span><div class="dx-feed-main"><div class="dx-feed-title">${l.dir > 0 ? "In" : l.dir < 0 ? "Out" : "Direct"} · <span class="dx-mono">${nf(l.qty, 1)} L</span> ${esc(l.fuel)}</div><div class="dx-feed-sub">${l.vehicle ? esc(l.vehicle) + " · " : ""}${esc(l.store)}</div></div><div class="dx-feed-end"><span class="dx-mono dx-muted" style="font-size:11px">${DX.fmtDate(l.date)}</span></div></div>`).join("") || DX.empty("No movements", "");
   const vehicleSummary = () => { const by = {}; DX.rows(inA).forEach(r => { if (r.fuel_entry_type === "Vehicle") { const k = r.vehicle_label || r.custom_vehicles; by[k] = (by[k] || 0) + (+r.quantity || 0); } }); return DX.card("Vehicle-wise summary", DX.bars(Object.entries(by).map(([k, v]) => ({ label: k, value: v })).sort((a, b) => b.value - a.value).slice(0, 8), { unit: "L", fmt: v => nf(v, 1) }), { icon: "truck", tone: "cyan", sub: "direct distribution at the pump" }); };
 
   const app = DX.register({
@@ -1984,7 +1991,7 @@ window.DX.defineApps = function () {
       { id: "stock", label: "Store balance", icon: "database", group: "Store & issue", needsDist: true, load: loadStock, render: () => DX.card("Store-wise balance", storeTable(B.stock, "68vh"), { icon: "database", tone: "cyan", sub: `live stock · ${esc(B.stockCompany || "")} · inward − issued` }) },
       { id: "distribution", label: "Fuel distribution", icon: "truck", type: "list", doc: "dist", group: "Store & issue", needsDist: true, searchPh: "Search entry, vehicle or material issue…", search: [r => r.name, r => r.vehicle_label, r => r.mi], filters: [{ f: "town_label", label: "Town / project", options: () => [...new Set(DX.rows(distA).map(r => r.town_label).filter(Boolean))].sort() }, { f: "reading_status", label: "Reading status", options: ["Working", "Not Working", "Not Applicable"] }], columns: distCols },
       { id: "newissue", label: "Issue to vehicle", icon: "plus", type: "form", doc: "dist", group: "Store & issue", needsDist: true },
-      { id: "ledger", label: "Stock ledger", icon: "swap", group: "Store & issue", needsDist: true, docs: ["inward", "dist"], render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Drum inward and vehicle issues since ${DX.fmtDate(WINDOW().from_date)}, newest first.</span></div>` + DX.table([{ f: "date", label: "Date", type: "date" }, { f: "ref", label: "Voucher", type: "mono" }, { f: "store", label: "Store", trunc: true }, { f: "fuel", label: "Fuel" }, { label: "In (L)", type: "num", d: 1, get: l => (l.dir > 0 ? l.qty : "") }, { label: "Out (L)", type: "num", d: 1, get: l => (l.dir < 0 ? l.qty : "") }], ledger(), { maxh: "68vh" }), { icon: "swap", tone: "cyan" }) },
+      { id: "ledger", label: "Stock ledger", icon: "swap", group: "Store & issue", needsDist: true, docs: ["inward", "dist"], render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Drum inward, issues to vehicles and direct pump fills since ${DX.fmtDate(WINDOW().from_date)}, newest first.</span></div>` + DX.table([{ f: "date", label: "Date", type: "date" }, { f: "ref", label: "Voucher", type: "mono" }, { f: "kind", label: "Type", hideSm: true }, { label: "Vehicle", trunc: true, strong: true, get: l => l.vehicle || "—" }, { f: "store", label: "Store", trunc: true }, { f: "fuel", label: "Fuel" }, { label: "In (L)", type: "num", d: 1, get: l => l.inQ || "" }, { label: "Out (L)", type: "num", d: 1, get: l => l.outQ || "" }], ledger(), { maxh: "68vh" }), { icon: "swap", tone: "cyan" }) },
       { id: "approvals", label: "Invoice approvals", icon: "inbox", group: "Accounts", docs: ["inward"], count: () => pending().length, render: () => DX.card("Invoice approvals", pending().map(r => `<div class="dx-appr"><div class="dx-appr-main"><div class="dx-appr-title">${esc(r.supplier || r.custom_petrol_pump)} <span class="dx-muted" style="font-weight:400">· ${r.fuel_entry_type === "Vehicle" ? "Direct distribution" : "Fuel inward"}</span></div><div class="dx-appr-meta"><span>${esc(r.town_label || "")}</span><span>${nf(r.quantity, 2)} L ${esc(r.types_of_fuel)}</span><span class="dx-mono">${DX.fmtDate(r.date)}</span></div></div><div class="dx-appr-amt">${DX.money(r.amount)}</div><div class="dx-appr-actions"><button class="dx-btn dx-btn-secondary dx-btn-sm" data-go="${esc(DX.entryRoute(inA, r))}">Open</button><button class="dx-btn dx-btn-ok dx-btn-sm" data-approve="${esc(r.name)}">${ic("check", 13)}Approve</button></div></div>`).join("") || DX.empty("Nothing to approve", "Every fuel invoice in this window has been approved."), { icon: "inbox", tone: "pending", sub: `${pending().length} draft Purchase Invoices · Accounts User / Manager` }),
         bind: ctx => ctx.on("click", async e => { const a = e.target.closest("[data-approve]"); if (!a) return; try { if (await approve(DX.find(inA, a.dataset.approve))) ctx.rerender(); } catch (err) { V.showProblems(err, "Couldn’t approve"); } }) },
       { id: "report", label: "Inward report", icon: "chart", type: "report", doc: "inward", group: "Reports", title: "Inward & Direct Distribution report", tabs: [{ id: "report", label: "Inward & direct distribution" }, { id: "fdreport", label: "Fuel distribution" }], filters: [{ f: "types_of_fuel", label: "Fuel", options: () => meta().filter_options.fuel_types || ["Diesel", "Petrol"] }, { f: "warehouse", label: "Store", options: () => stores() }], sum: rows => `<span class="dx-num">${nf(DX.sum(rows, "quantity"), 1)}</span> Ltr total`, columns: inwardCols.concat([{ f: "rateltr_ffs", label: "Rate", type: "num", d: 2 }, { label: "Invoice", type: "html", get: r => invoiceState(r) }]) },
@@ -2358,6 +2365,12 @@ window.DX.defineApps = function () {
   const LABEL = { "Material Receipt": "Receive into store", "Material Transfer": "Give to contractor / move", "Material Issue": "Issue / consume" };
   const SHORT = { "Material Receipt": "Receipt", "Material Transfer": "Transfer", "Material Issue": "Issue" };
   const itemOf = code => B.items.find(i => i.name === code) || {};
+  // fuel sources read "Fuel issue · 5 L Diesel · <vehicle>": litres on the first line, the vehicle under it, so neither is cut off
+  const srcCell = r => {
+    const s = r.source || "", p = s.split(" · ");
+    if (!/^Fuel (issue|direct)$/.test(p[0]) || p.length < 3) return esc(s) || '<span class="dx-faint">—</span>';
+    return `<div title="${esc(s)}">${esc(p.slice(0, 2).join(" · "))}</div><small class="dx-muted"><span hidden> · </span>${esc(p.slice(2).join(" · "))}</small>`;
+  };
   const whOf = name => B.warehouses.find(w => w.name === name) || {};
   const whOpts = (d, kind) => B.warehouses.filter(w => (!d.company || w.company === d.company) && (!kind || w.kind === kind)).map(w => ({ value: w.name, label: DX.whLabel(w.name), sub: w.kind }));
   const itemOpts = () => B.items.map(i => ({ value: i.name, label: `${i.item_name || i.name}${i.stock_uom ? " (" + i.stock_uom + ")" : ""}` }));
@@ -2431,7 +2444,7 @@ window.DX.defineApps = function () {
     ]; },
     panels: () => [
       DX.card("Contractor stock", balanceTable(B.balance.filter(r => r.kind === "Contractor").slice(0, 10)), { icon: "truck", tone: "cyan", sub: "live balance", action: `<button class="dx-btn dx-btn-ghost dx-btn-sm" data-go="stock/balance">All balances${ic("right", 13)}</button>` }),
-      DX.card("Latest entries", DX.table([{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { f: "source", label: "Source", trunc: true }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }], DX.rows(se).slice(0, 8), { go: r => DX.entryRoute(se, r) }), { icon: "swap", tone: "iris" })
+      DX.card("Latest entries", DX.table([{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "Source", type: "html", get: srcCell }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }], DX.rows(se).slice(0, 8), { go: r => DX.entryRoute(se, r) }), { icon: "swap", tone: "iris" })
     ],
     screens: [
       { id: "dashboard", label: "Dashboard", icon: "grid", type: "dashboard", docs: ["se"], load: async () => { if (!B.balance.length) await loadBalance(); } },
@@ -2440,12 +2453,12 @@ window.DX.defineApps = function () {
       { id: "entries", label: "Stock entries", icon: "list", type: "list", doc: "se", count: () => DX.rows(se).filter(r => r.docstatus === 0).length || null, searchPh: "Search entry, warehouse, source…",
         search: [r => r.name, r => DX.whLabel(r.from_wh), r => DX.whLabel(r.to_wh), r => r.source, r => SHORT[r.purpose]],
         filters: [{ f: "purpose", label: "Type", options: Object.keys(LABEL), display: v => SHORT[v] || v }],
-        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "From", trunc: true, get: r => DX.whLabel(r.from_wh) || "—" }, { label: "To", trunc: true, get: r => DX.whLabel(r.to_wh) || "—" }, { f: "source", label: "Source", trunc: true, hideSm: true }, { f: "nitems", label: "Items", type: "num" }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }],
+        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "From", trunc: true, get: r => DX.whLabel(r.from_wh) || "—" }, { label: "To", trunc: true, get: r => DX.whLabel(r.to_wh) || "—" }, { label: "Source", type: "html", get: srcCell, hideSm: true }, { f: "nitems", label: "Items", type: "num" }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }],
         banner: () => B.can_create ? "" : `<div class="dx-note dx-note-warn">${ic("lock", 16)}<div>Your role can view stock but can’t create Stock Entries — ask for the Stock User role.</div></div>` },
       { id: "new", label: "New stock entry", icon: "plus", type: "form", doc: "se" },
       { id: "ledger", label: "Stock ledger", icon: "swap", load: loadLedger,
         render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Every movement for ${esc(B.company || "")}, newest first.</span></div>` + (B.ledger.length ? DX.table([
-          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { f: "source", label: "Source", trunc: true, hideSm: true },
+          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { label: "Source", type: "html", get: srcCell, hideSm: true },
           { f: "item_code", label: "Item", trunc: true }, { label: "Warehouse", trunc: true, get: r => DX.whLabel(r.warehouse) },
           { label: "In / out", type: "html", get: r => `<span class="dx-num" style="color:var(${r.actual_qty < 0 ? "--err" : "--ok"})">${r.actual_qty > 0 ? "+" : ""}${nf(r.actual_qty, 2)}</span>` },
           { f: "qty_after_transaction", label: "Balance", type: "num", d: 2 }

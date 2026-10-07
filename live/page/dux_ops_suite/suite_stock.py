@@ -69,8 +69,8 @@ SOURCE_TITLE_FIELDS = {
     "Inhouse HSC Repairing": ("hsc_reference",),
     "Pour Card": ("from_junction", "to_junction"),
     "Concrete Entry": ("concrete_grade", "quantity_of_concrete"),
-    "Fuel for Stock": ("custom_vehicles",),
-    "Fuel Distribution": ("fd_vehicle_name",),
+    "Fuel for Stock": ("custom_vehicles", "quantity", "types_of_fuel"),
+    "Fuel Distribution": ("fd_vehicle_name", "issued_quantity_ltr", "fd_fuel_type"),
 }
 
 
@@ -85,8 +85,12 @@ def _source_title(doctype, r):
     if doctype == "Pour Card":
         return " → ".join(x for x in (r.get("from_junction"), r.get("to_junction")) if x)
     if doctype in ("Fuel for Stock", "Fuel Distribution"):
+        # litres first so a truncated column still shows them: "5 L Diesel · Tractor - … - 0611"
         vehicle = r.get("custom_vehicles") or r.get("fd_vehicle_name")
-        return (frappe.db.get_value("Vehicle Details", vehicle, "vehicle_display_name") if vehicle else "") or ""
+        qty = flt(r.get("quantity") if doctype == "Fuel for Stock" else r.get("issued_quantity_ltr"))
+        litres = f"{qty:g} L {r.get('types_of_fuel') or r.get('fd_fuel_type') or ''}".strip() if qty else ""
+        name = (frappe.db.get_value("Vehicle Details", vehicle, "vehicle_display_name") if vehicle else "") or ""
+        return " · ".join(x for x in (litres, name) if x)
     if doctype == "Concrete Entry":
         return " · ".join(x for x in (r.get("concrete_grade"), (f"{flt(r.get('quantity_of_concrete')):g} m³" if r.get("quantity_of_concrete") else "")) if x)
     return ""

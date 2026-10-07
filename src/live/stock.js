@@ -10,6 +10,12 @@
   const LABEL = { "Material Receipt": "Receive into store", "Material Transfer": "Give to contractor / move", "Material Issue": "Issue / consume" };
   const SHORT = { "Material Receipt": "Receipt", "Material Transfer": "Transfer", "Material Issue": "Issue" };
   const itemOf = code => B.items.find(i => i.name === code) || {};
+  // fuel sources read "Fuel issue · 5 L Diesel · <vehicle>": litres on the first line, the vehicle under it, so neither is cut off
+  const srcCell = r => {
+    const s = r.source || "", p = s.split(" · ");
+    if (!/^Fuel (issue|direct)$/.test(p[0]) || p.length < 3) return esc(s) || '<span class="dx-faint">—</span>';
+    return `<div title="${esc(s)}">${esc(p.slice(0, 2).join(" · "))}</div><small class="dx-muted"><span hidden> · </span>${esc(p.slice(2).join(" · "))}</small>`;
+  };
   const whOf = name => B.warehouses.find(w => w.name === name) || {};
   const whOpts = (d, kind) => B.warehouses.filter(w => (!d.company || w.company === d.company) && (!kind || w.kind === kind)).map(w => ({ value: w.name, label: DX.whLabel(w.name), sub: w.kind }));
   const itemOpts = () => B.items.map(i => ({ value: i.name, label: `${i.item_name || i.name}${i.stock_uom ? " (" + i.stock_uom + ")" : ""}` }));
@@ -83,7 +89,7 @@
     ]; },
     panels: () => [
       DX.card("Contractor stock", balanceTable(B.balance.filter(r => r.kind === "Contractor").slice(0, 10)), { icon: "truck", tone: "cyan", sub: "live balance", action: `<button class="dx-btn dx-btn-ghost dx-btn-sm" data-go="stock/balance">All balances${ic("right", 13)}</button>` }),
-      DX.card("Latest entries", DX.table([{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { f: "source", label: "Source", trunc: true }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }], DX.rows(se).slice(0, 8), { go: r => DX.entryRoute(se, r) }), { icon: "swap", tone: "iris" })
+      DX.card("Latest entries", DX.table([{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "Source", type: "html", get: srcCell }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }], DX.rows(se).slice(0, 8), { go: r => DX.entryRoute(se, r) }), { icon: "swap", tone: "iris" })
     ],
     screens: [
       { id: "dashboard", label: "Dashboard", icon: "grid", type: "dashboard", docs: ["se"], load: async () => { if (!B.balance.length) await loadBalance(); } },
@@ -92,12 +98,12 @@
       { id: "entries", label: "Stock entries", icon: "list", type: "list", doc: "se", count: () => DX.rows(se).filter(r => r.docstatus === 0).length || null, searchPh: "Search entry, warehouse, source…",
         search: [r => r.name, r => DX.whLabel(r.from_wh), r => DX.whLabel(r.to_wh), r => r.source, r => SHORT[r.purpose]],
         filters: [{ f: "purpose", label: "Type", options: Object.keys(LABEL), display: v => SHORT[v] || v }],
-        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "From", trunc: true, get: r => DX.whLabel(r.from_wh) || "—" }, { label: "To", trunc: true, get: r => DX.whLabel(r.to_wh) || "—" }, { f: "source", label: "Source", trunc: true, hideSm: true }, { f: "nitems", label: "Items", type: "num" }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }],
+        columns: [{ f: "name", label: "Entry", type: "mono", strong: true }, { label: "Type", get: r => SHORT[r.purpose] || "" }, { label: "From", trunc: true, get: r => DX.whLabel(r.from_wh) || "—" }, { label: "To", trunc: true, get: r => DX.whLabel(r.to_wh) || "—" }, { label: "Source", type: "html", get: srcCell, hideSm: true }, { f: "nitems", label: "Items", type: "num" }, { f: "posting_date", label: "Date", type: "date" }, { label: "Status", type: "status", get: r => DX.statusOf(se, r) }],
         banner: () => B.can_create ? "" : `<div class="dx-note dx-note-warn">${ic("lock", 16)}<div>Your role can view stock but can’t create Stock Entries — ask for the Stock User role.</div></div>` },
       { id: "new", label: "New stock entry", icon: "plus", type: "form", doc: "se" },
       { id: "ledger", label: "Stock ledger", icon: "swap", load: loadLedger,
         render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Every movement for ${esc(B.company || "")}, newest first.</span></div>` + (B.ledger.length ? DX.table([
-          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { f: "source", label: "Source", trunc: true, hideSm: true },
+          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { label: "Source", type: "html", get: srcCell, hideSm: true },
           { f: "item_code", label: "Item", trunc: true }, { label: "Warehouse", trunc: true, get: r => DX.whLabel(r.warehouse) },
           { label: "In / out", type: "html", get: r => `<span class="dx-num" style="color:var(${r.actual_qty < 0 ? "--err" : "--ok"})">${r.actual_qty > 0 ? "+" : ""}${nf(r.actual_qty, 2)}</span>` },
           { f: "qty_after_transaction", label: "Balance", type: "num", d: 2 }
