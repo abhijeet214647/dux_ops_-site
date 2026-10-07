@@ -1,0 +1,13 @@
+--- a/hsc_master_inhouse/hsc_master_inhouse/doctype/contractor_at_project/contractor_at_project.py
++++ b/hsc_master_inhouse/hsc_master_inhouse/doctype/contractor_at_project/contractor_at_project.py
+@@ -368,8 +368,8 @@
+     creates), falling back to the older "<mapping id> - <abbr>". None when neither exists."""
+     if not mapping or not company_abbr or not frappe.db.exists("Contractor at Project", mapping):
+         return None
+-    meta = frappe.get_meta("Contractor at Project")
+-    fields = [f for f in ("contractor", "contractor_name") if meta.has_field(f)]
++    # read the label columns from the table itself: jewipl keeps contractor_name data without its Custom Field
++    fields = [f for f in ("contractor", "contractor_name") if frappe.db.has_column("Contractor at Project", f)]
+     row = (frappe.db.get_value("Contractor at Project", mapping, fields, as_dict=True) if fields else None) or {}
+     for label in [row.get(f) for f in fields] + [mapping]:
+         if label and frappe.db.exists("Warehouse", f"{label} - {company_abbr}"):

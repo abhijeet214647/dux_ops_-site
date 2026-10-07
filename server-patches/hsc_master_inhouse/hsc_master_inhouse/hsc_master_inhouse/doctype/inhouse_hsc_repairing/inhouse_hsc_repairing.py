@@ -339,7 +339,16 @@ from hsc_master_inhouse.hsc_master_inhouse.doctype.contractor_at_project.contrac
 
 def is_hsc_material_issue_enabled():
     value = frappe.conf.get("hsc_material_issue_enabled")
-    return True if value is None else bool(cint(value))
+    if value is None or cint(value):
+        return True
+    return _from_ops_suite()
+
+
+def _from_ops_suite():
+    # site_config "hsc_ops_suite_stock" (jewipl): a submit made from the DUX Ops Suite (it sends ops_suite=1) still
+    # issues the materials, while the HSC page keeps hsc_material_issue_enabled = 0
+    form = getattr(frappe.local, "form_dict", None) or {}
+    return bool(cint(frappe.conf.get("hsc_ops_suite_stock"))) and bool(cint(form.get("ops_suite") or 0))
 
 
 def get_repairing_source_warehouse(doc, hsc_details):

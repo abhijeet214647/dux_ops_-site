@@ -10,7 +10,7 @@ emails) stay in those apps.
 """
 
 import frappe
-from frappe.utils import today
+from frappe.utils import cint, today
 
 # suite app key -> the original desk page whose roles decide access
 APP_PAGES = {
@@ -82,6 +82,8 @@ def get_suite_boot():
         "apps": _allowed_apps(),
         "company": frappe.conf.get("ops_company") or frappe.defaults.get_user_default("Company") or frappe.defaults.get_global_default("company"),
         "today": today(),
+        # HSC entries submitted from the suite issue stock from the contractor warehouse (see hsc_master_inhouse)
+        "hsc_suite_stock": bool(cint(frappe.conf.get("hsc_ops_suite_stock"))),
         "masters": {
             "companies": [[c.name, c.abbr] for c in frappe.get_all("Company", fields=["name", "abbr"], order_by="name asc")],
             "projects": frappe.get_all("Site Project", pluck="name", order_by="name asc"),

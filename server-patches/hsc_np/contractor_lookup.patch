@@ -1,0 +1,13 @@
+--- a/hsc_np/hsc_np/doctype/hsc_inhouse_np_ll/hsc_inhouse_np_ll.py
++++ b/hsc_np/hsc_np/doctype/hsc_inhouse_np_ll/hsc_inhouse_np_ll.py
+@@ -304,8 +304,8 @@
+     instead of the mapping id (CP-xxx), so look that one up when "<mapping> - <abbr>" is missing."""
+     if not mapping or not abbr or not frappe.db.exists("Contractor at Project", mapping):
+         return None
+-    meta = frappe.get_meta("Contractor at Project")
+-    fields = [f for f in ("contractor", "contractor_name") if meta.has_field(f)]
++    # read the label columns from the table itself: jewipl keeps contractor_name data without its Custom Field
++    fields = [f for f in ("contractor", "contractor_name") if frappe.db.has_column("Contractor at Project", f)]
+     if not fields:
+         return None
+     row = frappe.db.get_value("Contractor at Project", mapping, fields, as_dict=True) or {}

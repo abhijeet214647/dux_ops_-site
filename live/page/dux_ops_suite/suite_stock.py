@@ -45,8 +45,8 @@ def _contractor_warehouses():
     abbrs = {c.name: c.abbr for c in frappe.get_all("Company", fields=["name", "abbr"])}
     labels = set()
     if frappe.db.exists("DocType", "Contractor at Project"):
-        meta = frappe.get_meta("Contractor at Project")
-        fields = ["name"] + [f for f in ("contractor", "contractor_name") if meta.has_field(f)]
+        # table columns, not meta: jewipl keeps contractor_name data without its Custom Field
+        fields = ["name"] + [f for f in ("contractor", "contractor_name") if frappe.db.has_column("Contractor at Project", f)]
         for r in frappe.get_all("Contractor at Project", fields=fields, limit_page_length=0):
             labels.update(v for v in r.values() if v)
     if frappe.db.exists("DocType", "Contractor at Site"):

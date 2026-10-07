@@ -62,6 +62,7 @@ Python changes in `page/dux_ops_suite/*.py` need a gunicorn reload.
 | `fuel_email_recipients` | vehicle_inhouse | Fuel mails; `[]` sends none (unset = JEW addresses) |
 | `fuel_warehouse_by_town` | vehicle_inhouse | Fuel store resolved from Store At Town |
 | `hsc_company` | hsc_master_inhouse / hsc_np | Company for HSC stock; also issues MDPE pipe (installation) and Ball Valve (repairing), and makes the Material Issue cancel hook cancel only a real repair |
+| `hsc_ops_suite_stock` | hsc_master_inhouse + suite | HSC installations / repairs submitted from the suite issue stock from the contractor's own warehouse even where `hsc_material_issue_enabled` is 0 (the HSC page stays as it is). On jewipl since 2026-10-07 |
 | `peb_company`, `peb_raw_warehouse`, `peb_finished_store` | peb | PEB company and stores |
 | `peb_finished_valuation` | peb | Value the painted member at the raw plate cost consumed |
 
@@ -77,6 +78,12 @@ Exact copies of the live files changed on 2026-10-06, kept under their app paths
   On `hsc_company` sites it reads the repair from `custom_hsc_repairing` and skips installation Material Issues, so
   cancelling an installation no longer logs a bogus "Inhouse HSC Repairing HSC Inhouse-NNN not found". Live on the bench;
   not committed to the app repo because its `api.py` there carries other people's uncommitted work.
+- `hsc_master_inhouse/.../hsc_details_inhouse.py`, `inhouse_hsc_repairing.py` also carry `hsc_ops_suite_stock`: the suite sends
+  `ops_suite=1` on submit and only then is the Material Issue made.
+- `hsc_master_inhouse/contractor_lookup.patch`, `hsc_np/contractor_lookup.patch` (diffs only): the contractor warehouse
+  lookup reads the `contractor_name` column from the table, because jewipl has that data without the Custom Field.
+- `masters/hsc_jewipl_masters.py`: NP-II items + one `<contractor> - JEWPL` warehouse per HSC contractor (run on jewipl
+  2026-10-07, 56 warehouses).
 - `peb/peb/peb/ft_api.py`: `peb_finished_valuation` (the `peb` app has no git repo of its own)
 - `client_scripts/stock_entry_guarded.json`: the 3 site Client Scripts on Stock Entry ("Set Default stock entry type",
   "Fetch Auto Warehouse", "Default Warehouse In Stock") with a drafts-only guard, same text as jewipl. Without the guard

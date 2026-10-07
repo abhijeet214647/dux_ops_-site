@@ -1,5 +1,5 @@
 // DUX Ops Suite — one desk page for 8 field apps (HSC NP-II, Pour Card, PEB, Concrete, Fuel Stock, HSC Inhouse, Maintenance, Fuel Inward).
-// Build 20261007052703. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
+// Build 20261007053439. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -947,7 +947,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261007052703";
+  DX.BUILD = "20261007053439";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -2002,7 +2002,8 @@ window.DX.defineApps = function () {
 
 ;
 /* HSC Inhouse — LIVE (hsc_master_inhouse.api.*, same API as /desk/dux-hsc-inhouse and /hsc/m). 12k+ installations → lists page on the server.
-   Material Issue is switched off on jewipl (hsc_material_issue_enabled = 0), so submit only locks the record. */
+   jewipl keeps Material Issue off for the HSC page (hsc_material_issue_enabled = 0) but on for entries submitted from
+   this suite (hsc_ops_suite_stock = 1): submit sends ops_suite=1 and the stock leaves the contractor's own warehouse. */
 (function () {
   "use strict";
   const DX = window.DX, V = DX.views, { nf, esc, ic } = DX;
@@ -2092,7 +2093,7 @@ window.DX.defineApps = function () {
         refreshCounts();
         return r;
       },
-      submit: async name => { const r = await DX.call(API + "submit_hsc_installation", { name }); refreshCounts(); return fromInst(r); }
+      submit: async name => { const r = await DX.call(API + "submit_hsc_installation", { name, ops_suite: 1 }); refreshCounts(); return fromInst(r); }
     }
   };
   async function contractorStore(d) {
@@ -2142,7 +2143,7 @@ window.DX.defineApps = function () {
       query: async p => { const r = await listQuery("get_hsc_repairs", fromRep, q => ({ town: q.filters.ihr_townproject || "" }))(p); await fillHscNames(r.rows.map(x => x.hsc_reference)); return r; },
       get: async name => { const d = fromRep(await DX.call(API + "get_hsc_doc", { doctype: "Inhouse HSC Repairing", name }, { get: true })); await fillHscNames([d.hsc_reference]); return d; },
       save: async d => { const r = fromRep(await DX.call(API + "save_hsc_repairing", { data: DX.json(toRep(d)) })); refreshCounts(); return r; },
-      submit: async name => { const r = await DX.call(API + "submit_or_close_hsc_repairing", { name }); refreshCounts(); return fromRep(r); }
+      submit: async name => { const r = await DX.call(API + "submit_or_close_hsc_repairing", { name, ops_suite: 1 }); refreshCounts(); return fromRep(r); }
     }
   };
   const refreshCounts = () => DX.call(API + "get_dux_hsc_dashboard_counts", {}, { get: true }).then(c => { B.counts = c || B.counts; }, () => null);
@@ -2179,7 +2180,9 @@ window.DX.defineApps = function () {
     desc: "Installation · repairing · reports", eyebrow: "HSC operations", headline: `DUX HSC <span class="dx-grad">Inhouse</span>`,
     intro: "A clean page for HSC installation, repairing and reports. Town drives zone, ward, area, contractor and supervisor; picking an HSC in a repair fills its town and team.",
     docs: [inst, rep], noRecent: true,
-    boot: async () => { const r = await DX.call(API + "get_dux_hsc_inhouse_initial_data", {}, { get: true }); Object.assign(B, { masters: r.masters || {}, counts: r.counts || {}, permissions: r.permissions || {}, features: r.features || {}, role: r.role, can_admin: r.can_admin, default_company: r.default_company, recentInst: (r.installations || []).map(fromInst), recentRep: (r.repairs || []).map(fromRep) }); },
+    boot: async () => { const r = await DX.call(API + "get_dux_hsc_inhouse_initial_data", {}, { get: true }); Object.assign(B, { masters: r.masters || {}, counts: r.counts || {}, permissions: r.permissions || {}, features: r.features || {}, role: r.role, can_admin: r.can_admin, default_company: r.default_company, recentInst: (r.installations || []).map(fromInst), recentRep: (r.repairs || []).map(fromRep) });
+      // site_config hsc_ops_suite_stock: entries submitted here issue stock even where the HSC page has it switched off
+      if (DX.BOOT && DX.BOOT.hsc_suite_stock) B.features = Object.assign({}, B.features, { material_issue_enabled: true }); },
     kpis: () => { const c = B.counts, s = (B.dash && B.dash.summary) || {}; return [
       { label: "Installations", value: nf(c.installations || 0), sub: `<span class="dx-num">${nf(c.installation_draft || 0)}</span> draft entries`, icon: "home" },
       { label: "Draft repairs", value: nf(c.repair_draft || 0), sub: `<span class="dx-num">${nf(c.repair_submitted || 0)}</span> submitted`, icon: "wrench", tone: "pending" },
