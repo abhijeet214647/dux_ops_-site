@@ -52,6 +52,21 @@ def _allowed_apps():
     return allowed
 
 
+# other DUX pages shown as buttons on Home, only where the site has the page and the user may open it
+PORTAL_LINKS = (("dux-indent-portal", "Procurement portal", "cart"),)
+
+
+def _portal_links():
+    links = []
+    for page, label, icon in PORTAL_LINKS:
+        try:
+            if frappe.db.exists("Page", page) and frappe.get_doc("Page", page).is_permitted():
+                links.append({"label": label, "route": f"/desk/{page}", "icon": icon})
+        except Exception:
+            frappe.clear_messages()
+    return links
+
+
 def _contractors():
     label = (
         "coalesce(nullif(contractor, ''), nullif(contractor_name, ''), name)"
@@ -84,6 +99,7 @@ def get_suite_boot():
         "today": today(),
         # HSC entries submitted from the suite issue stock from the contractor warehouse (see hsc_master_inhouse)
         "hsc_suite_stock": bool(cint(frappe.conf.get("hsc_ops_suite_stock"))),
+        "links": _portal_links(),
         "masters": {
             "companies": [[c.name, c.abbr] for c in frappe.get_all("Company", fields=["name", "abbr"], order_by="name asc")],
             "projects": frappe.get_all("Site Project", pluck="name", order_by="name asc"),

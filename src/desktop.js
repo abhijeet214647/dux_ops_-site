@@ -84,7 +84,7 @@ window.DX.startDesktop = function () {
     host.innerHTML = `
       <section class="dx-hero"><div><div class="dx-eyebrow">DUX Ops Suite${(() => { const c = (DX.userCard && DX.userCard().company) || (DX.M && DX.M.defaultCompany) || ""; return c ? " · " + esc(c) : ""; })()}</div><h1>Every site app, in <span class="dx-grad">one</span> place</h1>
         <p>${hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}. HSC connections, pour cards, PEB fabrication, concrete, fuel and vehicle maintenance — pick an app to work in, or start from what needs attention.</p></div>
-        <div class="dx-hero-actions"><button class="dx-btn dx-btn-primary" data-act="quick">${ic("plus", 15)}New entry</button></div></section>
+        <div class="dx-hero-actions">${((DX.BOOT && DX.BOOT.links) || []).map(l => `<a class="dx-btn dx-btn-secondary" href="${esc(l.route)}">${ic(l.icon || "external", 15)}${esc(l.label)}</a>`).join("")}<button class="dx-btn dx-btn-primary" data-act="quick">${ic("plus", 15)}New entry</button></div></section>
       <section class="dx-kpis">
         ${DX.kpi({ label: "Entries today", value: nf(todayCount), sub: `Across ${DX.apps.length === 8 ? "all 8" : "your " + DX.apps.length} apps`, icon: "calendar" })}
         ${DX.kpi({ label: "Needs attention", value: nf(attTotal), sub: "Approvals, pending issues, due services", icon: "bell", tone: "pending" })}

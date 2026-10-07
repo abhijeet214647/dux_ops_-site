@@ -104,6 +104,7 @@ body.dx-dark{background:#0A0D13}
 .dx-btn-primary{color:var(--text-on-brand);background:linear-gradient(150deg,var(--iris),var(--iris-deep));box-shadow:var(--shadow-brand),inset 0 1px 0 rgba(255,255,255,.22)}
 .dx-btn-secondary{color:var(--fg-1);background:var(--surface-1);border-color:var(--hairline-2);box-shadow:var(--inset-hi)}
 .dx-btn-secondary:hover:not(:disabled){border-color:var(--iris);color:var(--iris)}
+.dx-root a.dx-btn-secondary{color:var(--fg-1)}.dx-root a.dx-btn-secondary:hover{color:var(--iris);text-decoration:none}
 .dx-btn-ghost{color:var(--fg-2);background:transparent}
 .dx-btn-ghost:hover:not(:disabled){color:var(--iris)}
 .dx-btn-danger{color:var(--err);background:var(--err-bg)}

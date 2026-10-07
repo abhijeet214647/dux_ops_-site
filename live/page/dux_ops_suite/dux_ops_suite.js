@@ -1,5 +1,5 @@
 // DUX Ops Suite — one desk page for 8 field apps (HSC NP-II, Pour Card, PEB, Concrete, Fuel Stock, HSC Inhouse, Maintenance, Fuel Inward).
-// Build 20261007053439. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
+// Build 20261007055255. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -79,6 +79,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
     eyeoff: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 20 20 4"/>',
     minus: '<path d="M5 12h14"/>', down: '<path d="m6 9 6 6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', back: '<path d="M19 12H5M11 18l-6-6 6-6"/>',
     lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+    cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11.3a1 1 0 0 0 1 .8h9.3a1 1 0 0 0 1-.8l1.6-7.3H6.1"/>',
     external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     fuel: '<path d="M4 20V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v15"/><path d="M3 20h12"/><path d="M6.5 8h5"/><path d="M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
@@ -947,7 +948,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261007053439";
+  DX.BUILD = "20261007055255";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -2561,7 +2562,7 @@ window.DX.startDesktop = function () {
     host.innerHTML = `
       <section class="dx-hero"><div><div class="dx-eyebrow">DUX Ops Suite${(() => { const c = (DX.userCard && DX.userCard().company) || (DX.M && DX.M.defaultCompany) || ""; return c ? " · " + esc(c) : ""; })()}</div><h1>Every site app, in <span class="dx-grad">one</span> place</h1>
         <p>${hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}. HSC connections, pour cards, PEB fabrication, concrete, fuel and vehicle maintenance — pick an app to work in, or start from what needs attention.</p></div>
-        <div class="dx-hero-actions"><button class="dx-btn dx-btn-primary" data-act="quick">${ic("plus", 15)}New entry</button></div></section>
+        <div class="dx-hero-actions">${((DX.BOOT && DX.BOOT.links) || []).map(l => `<a class="dx-btn dx-btn-secondary" href="${esc(l.route)}">${ic(l.icon || "external", 15)}${esc(l.label)}</a>`).join("")}<button class="dx-btn dx-btn-primary" data-act="quick">${ic("plus", 15)}New entry</button></div></section>
       <section class="dx-kpis">
         ${DX.kpi({ label: "Entries today", value: nf(todayCount), sub: `Across ${DX.apps.length === 8 ? "all 8" : "your " + DX.apps.length} apps`, icon: "calendar" })}
         ${DX.kpi({ label: "Needs attention", value: nf(attTotal), sub: "Approvals, pending issues, due services", icon: "bell", tone: "pending" })}
