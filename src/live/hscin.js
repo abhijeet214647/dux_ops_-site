@@ -52,10 +52,11 @@
         { f: "hdi_address", label: "Address", type: "textarea", span: "all" }
       ] },
       { id: "m", title: "Material details", short: "Material", icon: "box", tone: "cyan", cols: 4, fields: [
-        { f: "dia", label: "Pipe DIA", type: "link", options: DIA }, flt("water_meter", "Water meter"), flt("ftal", "FTA - L"), flt("fta", "FTA"),
-        { f: "saddle_size", label: "Saddle size", type: "link", options: DIA }, flt("mdpe_pipe_mtr", "MDPE pipe", "m"), flt("dce", "DCE"), flt("ball_valve", "Ball valve"),
-        flt("brass_ferrule", "Brass ferrule"), flt("cc_l", "CC breaking length", "m"), flt("cc_w", "CC breaking width", "m"), flt("cc_d", "CC breaking depth", "m"),
-        flt("soil_l", "Soil excavation length", "m"), flt("soil_w", "Soil excavation width", "m"), flt("soil_d", "Soil excavation depth", "m")
+        // same fields, order and labels as the HSC Inhouse page (/desk/dux-hsc-inhouse)
+        { f: "dia", label: "Pipe DIA", type: "link", options: DIA }, flt("water_meter", "Water Meter"), flt("ftal", "FTA - L"), flt("fta", "FTA"),
+        { f: "saddle_size", label: "Saddle Size", type: "link", options: DIA }, flt("mdpe_pipe_mtr", "MDPE Pipe (mtr)"), flt("dce", "DCE"), flt("ball_valve", "Ball Valve"),
+        flt("brass_ferrule", "Brass Ferrule"), flt("cc_l", "CC Breaking Length (mtr)"), flt("cc_w", "CC Breaking Width (mtr)"), flt("cc_d", "CC Breaking Depth (mtr)"),
+        flt("soil_l", "Soil Excavation Length"), flt("soil_w", "Soil Excavation Width"), flt("soil_d", "Soil Excavation Depth")
       ] },
       { id: "k", title: "Contractor details", short: "Contractor", icon: "building", fields: [
         { f: "hdi_contractor_name", label: "Contractor name", type: "link", parent: ["hdi_townproject"], options: d => byTown("contractors", d.hdi_townproject).map(c => ({ value: c.value, label: c.contractor || c.label })), onSet: d => contractorStore(d) },
@@ -129,7 +130,7 @@
       { id: "k", title: "Contractor details", short: "Contractor", icon: "building", fields: [
         { f: "ihr_contractor_name", label: "Contractor name", type: "link", options: d => byTown("contractors", d.ihr_townproject).map(c => ({ value: c.value, label: c.contractor || c.label })) }, { f: "ihr_supervisor_name", label: "Supervisor name", type: "link", options: d => byTown("supervisors", d.ihr_townproject) }
       ] },
-      { id: "m", title: "Material details", short: "Material", icon: "box", tone: "cyan", cols: 4, fields: [flt("brass_ferrule", "Brass ferrule"), { f: "saddle_size", label: "Saddle size", type: "link", options: DIA }, flt("ftal", "FTA - L"), flt("mdpe_pipe_mtr", "MDPE pipe", "m"), flt("valve", "Valve")] }
+      { id: "m", title: "Material details", short: "Material", icon: "box", tone: "cyan", cols: 4, fields: [flt("brass_ferrule", "Brass Ferrule"), { f: "saddle_size", label: "Saddle Size", type: "link", options: DIA }, flt("ftal", "FTA - L"), flt("mdpe_pipe_mtr", "MDPE Pipe (mtr)"), flt("valve", "Valve")] }
     ],
     onSubmit: () => {},
     detailActions: d => [d.docstatus === 1 && canAdmin() && { label: "Cancel", icon: "close", tone: "danger", run: async x => { if (!(await DX.confirm({ title: "Cancel this repair?", sub: "Cancelled records can’t be edited again.", ok: "Cancel repair", tone: "danger" }))) return false; await DX.call(API + "cancel_hsc_repairing", { name: x.name }); DX.toast("Cancelled · " + esc(x.name)); } }],
