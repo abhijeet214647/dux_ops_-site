@@ -1,5 +1,5 @@
 // DUX Ops Suite — one desk page for 8 field apps (HSC NP-II, Pour Card, PEB, Concrete, Fuel Stock, HSC Inhouse, Maintenance, Fuel Inward).
-// Build 20261007055255. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
+// Build 20261007055636. Each app talks to its OWN whitelisted API; this page adds the shell only. Source: C:\Users\HP\dux-ops-suite (build-live.js).
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -948,7 +948,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261007055255";
+  DX.BUILD = "20261007055636";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;

@@ -557,6 +557,7 @@ body.dx-dark{background:#05070B}
 .dx-m-intro{margin:4px 2px 16px}
 .dx-m-intro h1{margin:4px 0 6px;font-size:22px;font-weight:600;letter-spacing:var(--ls-display);line-height:1.25}
 .dx-m-intro p{color:var(--fg-2);font-size:13.5px;margin:0}
+.dx-m .dx-m-portal{display:flex;width:100%;height:44px;margin:0 0 14px}.dx-m .dx-m-portal span{flex:1;text-align:left}
 .dx-m-hello{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .dx-m-hello .dx-mark{width:44px;height:44px;border-radius:13px}
 .dx-m-pick{display:flex;flex-direction:column;gap:10px}

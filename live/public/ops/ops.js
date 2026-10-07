@@ -1,4 +1,4 @@
-// DUX Ops Suite /ops/m — build 20261007055255
+// DUX Ops Suite /ops/m — build 20261007055636
 window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
 ;
 /* DUX Ops Suite — shared engine (desktop + mobile).
@@ -947,7 +947,7 @@ window.DX = window.DX || {}; window.DX.deferStart = true; window.DX.live = true;
   // An open tab keeps running the old code after a deploy (desk caches page JS, and the SPA never
   // reloads). build-live writes its stamp to /assets/dux_portal/ops/version.txt; when that moves on,
   // reload — but only while no form has unsaved changes.
-  DX.BUILD = "20261007055255";
+  DX.BUILD = "20261007055636";
   let newer = false;
   const checkVersion = async () => {
     if (newer) return;
@@ -2597,6 +2597,7 @@ window.DX.startMobile = function () {
     const attTotal = apps.reduce((n, a) => n + (a.attentionCount ? a.attentionCount() : a.attention ? a.attention().length : 0), 0);
     const quick = apps.flatMap(a => a.docs.filter(d => d.form && d.canCreate !== false && !d.hideFromQuick).slice(0, 1).map(d => ({ a, d })));
     host.innerHTML = `<section class="dx-m-intro"><div class="dx-eyebrow">${hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}</div><h1>Your <span class="dx-grad">apps</span></h1></section>
+      ${((DX.BOOT && DX.BOOT.links) || []).map(l => `<a class="dx-btn dx-btn-secondary dx-m-portal" href="${esc(l.route)}">${ic(l.icon || "external", 16)}<span>${esc(l.label)}</span>${ic("right", 14)}</a>`).join("")}
       <div class="dx-m-tiles">${apps.map(a => { const s = a.homeStat ? a.homeStat() : null, n = a.attentionCount ? a.attentionCount() : a.attention ? a.attention().length : 0; return `<button class="dx-m-tile dx-hue-${a.hue}" data-go="${a.key}/${a.screens[0].id}"><div class="dx-m-tiletop"><span class="dx-apptile">${ic(a.icon, 18)}</span>${n ? `<span class="dx-status dx-status-pending">${n}</span>` : ""}</div><div class="dx-m-tiletitle">${esc(a.short)}</div>${s ? `<div class="dx-m-tilestat"><b>${s.value}</b> ${esc(s.label)}</div>` : ""}</button>`; }).join("")}
         <button class="dx-m-tile dx-m-tile-add" data-go="pick">${ic("plus", 20)}<div class="dx-m-tiletitle">Edit apps</div></button></div>
       ${quick.length ? `<div class="dx-eyebrow dx-m-sec">Quick create</div><div class="dx-m-quick">${quick.map(({ a, d }) => `<button class="dx-m-q dx-hue-${a.hue}" data-go="${DX.newRoute(d)}"><span class="dx-apptile dx-apptile-sm">${ic("plus", 14)}</span><span>${esc(d.newLabel || "New " + d.entity.singular.toLowerCase())}</span></button>`).join("")}</div>` : ""}
