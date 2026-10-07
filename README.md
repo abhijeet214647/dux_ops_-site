@@ -82,8 +82,13 @@ Exact copies of the live files changed on 2026-10-06, kept under their app paths
   `ops_suite=1` on submit and only then is the Material Issue made.
 - `hsc_master_inhouse/contractor_lookup.patch`, `hsc_np/contractor_lookup.patch` (diffs only): the contractor warehouse
   lookup reads the `contractor_name` column from the table, because jewipl has that data without the Custom Field.
-- `masters/hsc_jewipl_masters.py`: NP-II items + one `<contractor> - JEWPL` warehouse per HSC contractor (run on jewipl
-  2026-10-07, 56 warehouses).
+- `masters/hsc_jewipl_masters.py`: NP-II items + one `<contractor> - JEWPL` warehouse per HSC contractor. Run on jewipl
+  2026-10-07, then the 56 warehouses were DELETED the same day: the HSC page fills an installation's Store (a Store At
+  Town link) with `<contractor> - <abbr>` whenever that warehouse exists, so saves failed with "Could not find Store".
+  Before creating them again, either make each one a Store At Town or guard `get_contractor_supplier_warehouse`
+  (hsc_master_inhouse api.py) to pick only Store At Town names.
+- jewipl 2026-10-07: all suite stock switched OFF on the user's request (`hsc_ops_suite_stock` 0, `ops_stock_enabled` 0,
+  `peb_finished_valuation` 0, `hsc_company` ""). The code stays; turning the keys back on re-enables it.
 - `peb/peb/peb/ft_api.py`: `peb_finished_valuation` (the `peb` app has no git repo of its own)
 - `client_scripts/stock_entry_guarded.json`: the 3 site Client Scripts on Stock Entry ("Set Default stock entry type",
   "Fetch Auto Warehouse", "Default Warehouse In Stock") with a drafts-only guard, same text as jewipl. Without the guard
