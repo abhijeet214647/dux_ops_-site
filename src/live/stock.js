@@ -103,7 +103,7 @@
       { id: "new", label: "New stock entry", icon: "plus", type: "form", doc: "se" },
       { id: "ledger", label: "Stock ledger", icon: "swap", load: loadLedger,
         render: () => DX.card("Stock ledger", `<div class="dx-meta"><span>Every movement for ${esc(B.company || "")}, newest first.</span></div>` + (B.ledger.length ? DX.table([
-          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { label: "Source", type: "html", get: srcCell, hideSm: true },
+          { f: "posting_date", label: "Date", type: "date" }, { f: "voucher_no", label: "Entry", type: "mono" }, { label: "Source", type: "html", get: srcCell },
           { f: "item_code", label: "Item", trunc: true }, { label: "Warehouse", trunc: true, get: r => DX.whLabel(r.warehouse) },
           { label: "In / out", type: "html", get: r => `<span class="dx-num" style="color:var(${r.actual_qty < 0 ? "--err" : "--ok"})">${r.actual_qty > 0 ? "+" : ""}${nf(r.actual_qty, 2)}</span>` },
           { f: "qty_after_transaction", label: "Balance", type: "num", d: 2 }
